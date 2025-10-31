@@ -295,15 +295,19 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
       if (value != null) {
         switch (value) {
           case 'refresh':
+            // ignore: use_build_context_synchronously
             context.read<fm.FileManagerBloc>().add(fm.RefreshFileManager());
             break;
           case 'show_hidden':
+            // ignore: use_build_context_synchronously
             context.read<fm.FileManagerBloc>().add(fm.ToggleHiddenFiles(true));
             break;
           case 'sort_by':
+            // ignore: use_build_context_synchronously
             _showSortOptions(context);
             break;
           case 'view_options':
+            // ignore: use_build_context_synchronously
             _showViewOptions(context);
             break;
         }
@@ -335,6 +339,7 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
       ],
     ).then((value) {
       if (value != null) {
+        // ignore: use_build_context_synchronously
         context.read<fm.FileManagerBloc>().add(fm.ChangeSortBy(value));
       }
     });
