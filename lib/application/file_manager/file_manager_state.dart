@@ -18,6 +18,8 @@ class FileManagerLoaded extends FileManagerState {
   final ViewMode viewMode;
   final bool showHiddenFiles;
   final bool showFileExtensions;
+  final bool canGoBack;
+  final bool canGoForward;
   final String sortBy;
   final List<DeviceInfo> connectedDevices;
 
@@ -30,6 +32,8 @@ class FileManagerLoaded extends FileManagerState {
     required this.viewMode,
     required this.showHiddenFiles,
     required this.showFileExtensions,
+    required this.canGoBack,
+    required this.canGoForward,
     required this.sortBy,
     required this.connectedDevices,
   });
@@ -45,6 +49,8 @@ class FileManagerLoaded extends FileManagerState {
     bool? showFileExtensions,
     String? sortBy,
     List<DeviceInfo>? connectedDevices,
+    bool? canGoBack,
+    bool? canGoForward,
   }) {
     return FileManagerLoaded(
       currentPath: currentPath ?? this.currentPath,
@@ -55,6 +61,8 @@ class FileManagerLoaded extends FileManagerState {
       viewMode: viewMode ?? this.viewMode,
       showHiddenFiles: showHiddenFiles ?? this.showHiddenFiles,
       showFileExtensions: showFileExtensions ?? this.showFileExtensions,
+      canGoBack: canGoBack ?? this.canGoBack,
+      canGoForward: canGoForward ?? this.canGoForward,
       sortBy: sortBy ?? this.sortBy,
       connectedDevices: connectedDevices ?? this.connectedDevices,
     );
@@ -72,6 +80,8 @@ class FileManagerLoaded extends FileManagerState {
     showFileExtensions,
     sortBy,
     connectedDevices,
+    canGoBack,
+    canGoForward,
   ];
 }
 class FileManagerError extends FileManagerState {

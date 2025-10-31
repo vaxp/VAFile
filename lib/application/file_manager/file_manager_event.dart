@@ -11,10 +11,15 @@ abstract class FileManagerEvent extends Equatable {
 class InitializeFileManager extends FileManagerEvent {}
 class LoadDirectory extends FileManagerEvent {
   final String path;
-  const LoadDirectory(this.path);
+  // when false, don't add this navigation to history stacks (used by back/forward)
+  final bool addToHistory;
+  const LoadDirectory(this.path, {this.addToHistory = true});
   @override
-  List<Object?> get props => [path];
+  List<Object?> get props => [path, addToHistory];
 }
+
+class NavigateBack extends FileManagerEvent {}
+class NavigateForward extends FileManagerEvent {}
 class SearchFiles extends FileManagerEvent {
   final String query;
   const SearchFiles(this.query);

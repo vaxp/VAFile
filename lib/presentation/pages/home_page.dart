@@ -68,20 +68,20 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
           return Row(
             children: [
               IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back_ios,
                   size: 16,
-                  color: Colors.white70,
+                  color: state.canGoBack ? Colors.white70 : Colors.white24,
                 ),
-                onPressed: () => context.read<fm.FileManagerBloc>().add(fm.LoadDirectory(state.currentPath)),
+                onPressed: state.canGoBack ? () => context.read<fm.FileManagerBloc>().add(fm.NavigateBack()) : null,
               ),
               IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_forward_ios,
                   size: 16,
-                  color: Colors.white70,
+                  color: state.canGoForward ? Colors.white70 : Colors.white24,
                 ),
-                onPressed: () => context.read<fm.FileManagerBloc>().add(fm.LoadDirectory(state.currentPath)),
+                onPressed: state.canGoForward ? () => context.read<fm.FileManagerBloc>().add(fm.NavigateForward()) : null,
               ),
             ],
           );

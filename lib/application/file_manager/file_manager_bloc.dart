@@ -16,14 +16,20 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
   String searchQuery = '';
   bool showHiddenFiles = false;
 
+  // navigation history stacks
+  final List<String> _backStack = [];
+  final List<String> _forwardStack = [];
+
   FileManagerBloc({FileManagerRepository? repo}) : super(FileManagerInitial()) {
     repository = repo ?? FileManagerRepositoryImpl();
 
     on<InitializeFileManager>((event, emit) async {
       currentPath = '/home';
+      _backStack.clear();
+      _forwardStack.clear();
       emit(FileManagerLoading());
       try {
-  files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
+        files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
         filteredFiles = List<FileItem>.from(files);
         emit(FileManagerLoaded(
           currentPath: currentPath,
@@ -34,6 +40,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           viewMode: ViewMode.grid,
           showHiddenFiles: showHiddenFiles,
           showFileExtensions: true,
+          canGoBack: _backStack.isNotEmpty,
+          canGoForward: _forwardStack.isNotEmpty,
           sortBy: 'name',
           connectedDevices: const [],
         ));
@@ -43,10 +51,20 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
     });
 
     on<LoadDirectory>((event, emit) async {
+      // If requested to load a new directory, update history stacks
       emit(FileManagerLoading());
       try {
+        if (event.path != currentPath) {
+          // push current to back stack
+          if (currentPath.isNotEmpty) {
+            _backStack.add(currentPath);
+          }
+          // clear forward stack when navigating to a new path
+          _forwardStack.clear();
+        }
+
         currentPath = event.path;
-  files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
+        files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
         filteredFiles = List<FileItem>.from(files);
         emit(FileManagerLoaded(
           currentPath: currentPath,
@@ -57,6 +75,66 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           viewMode: ViewMode.grid,
           showHiddenFiles: showHiddenFiles,
           showFileExtensions: true,
+          canGoBack: _backStack.isNotEmpty,
+          canGoForward: _forwardStack.isNotEmpty,
+          sortBy: 'name',
+          connectedDevices: const [],
+        ));
+      } catch (e) {
+        emit(FileManagerError(e.toString()));
+      }
+    });
+
+    on<NavigateBack>((event, emit) async {
+      if (_backStack.isEmpty) return;
+      emit(FileManagerLoading());
+      try {
+        final target = _backStack.removeLast();
+        // push current to forward stack
+        if (currentPath.isNotEmpty) _forwardStack.add(currentPath);
+        currentPath = target;
+        files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
+        filteredFiles = List<FileItem>.from(files);
+        emit(FileManagerLoaded(
+          currentPath: currentPath,
+          files: files,
+          filteredFiles: filteredFiles,
+          searchQuery: searchQuery,
+          availableSpace: '',
+          viewMode: ViewMode.grid,
+          showHiddenFiles: showHiddenFiles,
+          showFileExtensions: true,
+          canGoBack: _backStack.isNotEmpty,
+          canGoForward: _forwardStack.isNotEmpty,
+          sortBy: 'name',
+          connectedDevices: const [],
+        ));
+      } catch (e) {
+        emit(FileManagerError(e.toString()));
+      }
+    });
+
+    on<NavigateForward>((event, emit) async {
+      if (_forwardStack.isEmpty) return;
+      emit(FileManagerLoading());
+      try {
+        final target = _forwardStack.removeLast();
+        // push current to back stack
+        if (currentPath.isNotEmpty) _backStack.add(currentPath);
+        currentPath = target;
+        files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
+        filteredFiles = List<FileItem>.from(files);
+        emit(FileManagerLoaded(
+          currentPath: currentPath,
+          files: files,
+          filteredFiles: filteredFiles,
+          searchQuery: searchQuery,
+          availableSpace: '',
+          viewMode: ViewMode.grid,
+          showHiddenFiles: showHiddenFiles,
+          showFileExtensions: true,
+          canGoBack: _backStack.isNotEmpty,
+          canGoForward: _forwardStack.isNotEmpty,
           sortBy: 'name',
           connectedDevices: const [],
         ));
@@ -79,6 +157,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         viewMode: ViewMode.grid,
         showHiddenFiles: showHiddenFiles,
         showFileExtensions: true,
+        canGoBack: _backStack.isNotEmpty,
+        canGoForward: _forwardStack.isNotEmpty,
         sortBy: 'name',
         connectedDevices: const [],
       ));
@@ -100,6 +180,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             viewMode: currentState.viewMode,
             showHiddenFiles: showHiddenFiles,
             showFileExtensions: true,
+            canGoBack: _backStack.isNotEmpty,
+            canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
             connectedDevices: currentState.connectedDevices,
           ));
@@ -125,6 +207,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             viewMode: currentState.viewMode,
             showHiddenFiles: showHiddenFiles,
             showFileExtensions: true,
+            canGoBack: _backStack.isNotEmpty,
+            canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
             connectedDevices: currentState.connectedDevices,
           ));
@@ -150,6 +234,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             viewMode: currentState.viewMode,
             showHiddenFiles: showHiddenFiles,
             showFileExtensions: true,
+            canGoBack: _backStack.isNotEmpty,
+            canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
             connectedDevices: currentState.connectedDevices,
           ));
@@ -175,6 +261,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             viewMode: currentState.viewMode,
             showHiddenFiles: showHiddenFiles,
             showFileExtensions: true,
+            canGoBack: _backStack.isNotEmpty,
+            canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
             connectedDevices: currentState.connectedDevices,
           ));
@@ -200,6 +288,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             viewMode: currentState.viewMode,
             showHiddenFiles: showHiddenFiles,
             showFileExtensions: true,
+            canGoBack: _backStack.isNotEmpty,
+            canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
             connectedDevices: currentState.connectedDevices,
           ));
@@ -224,6 +314,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           viewMode: currentState.viewMode,
           showHiddenFiles: showHiddenFiles,
           showFileExtensions: true,
+          canGoBack: _backStack.isNotEmpty,
+          canGoForward: _forwardStack.isNotEmpty,
           sortBy: currentState.sortBy,
           connectedDevices: currentState.connectedDevices,
         ));
@@ -252,6 +344,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             viewMode: currentState.viewMode,
             showHiddenFiles: showHiddenFiles,
             showFileExtensions: true,
+            canGoBack: _backStack.isNotEmpty,
+            canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
             connectedDevices: currentState.connectedDevices,
           ));
@@ -277,6 +371,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             viewMode: currentState.viewMode,
             showHiddenFiles: showHiddenFiles,
             showFileExtensions: true,
+            canGoBack: _backStack.isNotEmpty,
+            canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
             connectedDevices: currentState.connectedDevices,
           ));
