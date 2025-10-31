@@ -39,6 +39,7 @@ class ContextMenu extends StatelessWidget {
           border: Border.all(color: const Color(0xFF404040), width: 1),
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: Colors.black.withOpacity(0.4),
               blurRadius: 12,
               offset: const Offset(0, 6),
@@ -199,6 +200,7 @@ class EmptyContextMenu extends StatelessWidget {
           border: Border.all(color: const Color(0xFF404040), width: 1),
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: Colors.black.withOpacity(0.4),
               blurRadius: 12,
               offset: const Offset(0, 6),
@@ -324,6 +326,7 @@ class CombinedContextMenu extends StatelessWidget {
           border: Border.all(color: const Color(0xFF404040), width: 1),
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: Colors.black.withOpacity(0.4),
               blurRadius: 12,
               offset: const Offset(0, 6),

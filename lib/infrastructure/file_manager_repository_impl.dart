@@ -76,7 +76,6 @@ class FileManagerRepositoryImpl implements FileManagerRepository {
 
   @override
   Future<void> compressFiles(List<String> filePaths, String destination) async {
-    // TODO: Implement file compression
     throw UnimplementedError('File compression not implemented yet');
   }
 

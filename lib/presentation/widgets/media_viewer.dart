@@ -34,6 +34,7 @@ class ImageViewer extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        // ignore: deprecated_member_use
         backgroundColor: Colors.black.withOpacity(0.7),
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -82,6 +83,7 @@ class _VideoViewerState extends State<VideoViewer> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
         _process?.kill();
@@ -90,6 +92,7 @@ class _VideoViewerState extends State<VideoViewer> {
       child: Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
+          // ignore: deprecated_member_use
           backgroundColor: Colors.black.withOpacity(0.7),
           leading: IconButton(
             icon: const Icon(Icons.close),
@@ -148,6 +151,7 @@ class _AudioViewerState extends State<AudioViewer> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
         _process?.kill();
@@ -156,6 +160,7 @@ class _AudioViewerState extends State<AudioViewer> {
       child: Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
+          // ignore: deprecated_member_use
           backgroundColor: Colors.black.withOpacity(0.7),
           leading: IconButton(
             icon: const Icon(Icons.close),

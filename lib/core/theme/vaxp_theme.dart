@@ -11,6 +11,7 @@ class VaxpTheme {
         colorScheme: ColorScheme.dark(
           primary: VaxpColors.primary,
           secondary: VaxpColors.secondary,
+          // ignore: deprecated_member_use
           background: VaxpColors.darkGlassBackground,
           surface: VaxpColors.glassSurface,
         ),
@@ -46,6 +47,7 @@ class VaxpTheme {
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             elevation: 0,
+            // ignore: deprecated_member_use
             backgroundColor: VaxpColors.primary.withOpacity(0.8),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
@@ -58,6 +60,7 @@ class VaxpTheme {
         // ⚪ OutlinedButton
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
+            // ignore: deprecated_member_use
             side: BorderSide(color: VaxpColors.primary.withOpacity(0.5)),
             foregroundColor: VaxpColors.primary,
             shape:
@@ -71,6 +74,7 @@ class VaxpTheme {
           backgroundColor: const Color.fromARGB(0, 0, 0, 0),
           elevation: 0,
           height: 72,
+          // ignore: deprecated_member_use
           indicatorColor: VaxpColors.primary.withOpacity(0.25),
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           iconTheme: WidgetStateProperty.all(
@@ -103,6 +107,7 @@ class VaxpTheme {
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide:
+                // ignore: deprecated_member_use
                 BorderSide(color: Colors.white.withOpacity(0.2), width: 1),
           ),
           focusedBorder: OutlineInputBorder(
@@ -142,13 +147,16 @@ class VaxpTheme {
         ),
         switchTheme: SwitchThemeData(
           thumbColor:
+              // ignore: deprecated_member_use
               WidgetStateProperty.all(VaxpColors.primary.withOpacity(0.9)),
           trackColor:
+              // ignore: deprecated_member_use
               WidgetStateProperty.all(VaxpColors.primary.withOpacity(0.4)),
         ),
         sliderTheme: SliderThemeData(
           activeTrackColor: VaxpColors.primary,
           thumbColor: VaxpColors.primary,
+          // ignore: deprecated_member_use
           inactiveTrackColor: VaxpColors.primary.withOpacity(0.2),
         ),
 
@@ -185,8 +193,10 @@ class VaxpGlass extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
         child: Container(
           decoration: BoxDecoration(
+            // ignore: deprecated_member_use
             color: Colors.white.withOpacity(opacity * 0.8),
             borderRadius: radius ?? BorderRadius.circular(20),
+            // ignore: deprecated_member_use
             border: Border.all(color: Colors.white.withOpacity(0.15)),
           ),
           child: child,

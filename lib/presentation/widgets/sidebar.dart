@@ -275,6 +275,7 @@ class Sidebar extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
+                  // ignore: deprecated_member_use
                   color: isSelected ? const Color(0xFF007AFF).withOpacity(0.2) : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -304,6 +305,7 @@ class Sidebar extends StatelessWidget {
                               subtitle,
                               style: TextStyle(
                                 fontSize: 11,
+                                // ignore: deprecated_member_use
                                 color: isSelected ? const Color(0xFF007AFF).withOpacity(0.7) : Colors.white54,
                               ),
                               overflow: TextOverflow.ellipsis,

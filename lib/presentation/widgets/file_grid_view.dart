@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+// ignore: unnecessary_import
 import 'package:flutter/gestures.dart';
+// ignore: unnecessary_import
 import 'package:flutter/rendering.dart';
 import 'dart:io';
 import 'package:path/path.dart' as p;
@@ -35,28 +37,36 @@ class _FileGridViewState extends State<FileGridView> {
 
   void _setupKeyboardShortcuts() {
     // Set up keyboard shortcuts
+    // ignore: deprecated_member_use
     RawKeyboard.instance.addListener(_handleKeyEvent);
   }
 
+  // ignore: deprecated_member_use
   void _handleKeyEvent(RawKeyEvent event) {
+    // ignore: deprecated_member_use
     if (event is RawKeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.delete) {
         _deleteSelectedFiles();
       } else if (event.logicalKey == LogicalKeyboardKey.f2) {
         _renameSelectedFile();
       } else if (event.logicalKey == LogicalKeyboardKey.keyC && 
+                 // ignore: deprecated_member_use
                  event.isControlPressed) {
         _copySelectedFiles();
       } else if (event.logicalKey == LogicalKeyboardKey.keyX && 
+                 // ignore: deprecated_member_use
                  event.isControlPressed) {
         _cutSelectedFiles();
       } else if (event.logicalKey == LogicalKeyboardKey.keyV && 
+                 // ignore: deprecated_member_use
                  event.isControlPressed) {
         _pasteFiles();
       } else if (event.logicalKey == LogicalKeyboardKey.keyA && 
+                 // ignore: deprecated_member_use
                  event.isControlPressed) {
         _selectAllFiles();
       } else if (event.logicalKey == LogicalKeyboardKey.enter && 
+                 // ignore: deprecated_member_use
                  event.isAltPressed) {
         _showPropertiesForSelectedFile();
       }
@@ -65,6 +75,7 @@ class _FileGridViewState extends State<FileGridView> {
 
   @override
   void dispose() {
+    // ignore: deprecated_member_use
     RawKeyboard.instance.removeListener(_handleKeyEvent);
     _scrollController.dispose();
     super.dispose();
@@ -196,60 +207,60 @@ class _FileGridViewState extends State<FileGridView> {
     );
   }
 
-  void _showEmptyContextMenu(Offset position) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.transparent,
-      builder: (context) => Stack(
-        children: [
-          Positioned(
-            left: position.dx,
-            top: position.dy,
-            child: EmptyContextMenu(
-              onNewFolder: () {
-                Navigator.pop(context);
-                showDialog(
-                  context: context,
-                  builder: (context) => NewFolderDialog(
-                    onCreateFolder: (name) {
-                      final state = this.context.read<FileManagerBloc>().state;
-                      if (state is FileManagerLoaded) {
-                        context.read<FileManagerBloc>().add(CreateNewFolderEvent(name));
-                      }
-                    },
-                  ),
-                );
-              },
-              onNewDocument: () {
-                Navigator.pop(context);
-                _showNewDocumentDialog();
-              },
-              onOpenWith: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Open With not implemented')));
-              },
-              onOpenInConsole: () {
-                Navigator.pop(context);
-                _openTerminalAtCurrentPath();
-              },
-              onPaste: ClipboardService.instance.hasItems ? () {
-                Navigator.pop(context);
-                _pasteFiles();
-              } : null,
-              onSelectAll: () {
-                Navigator.pop(context);
-                _selectAllFiles();
-              },
-              onProperties: () {
-                Navigator.pop(context);
-                _showPropertiesForSelectedFile();
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // void _showEmptyContextMenu(Offset position) {
+  //   showDialog(
+  //     context: context,
+  //     barrierColor: Colors.transparent,
+  //     builder: (context) => Stack(
+  //       children: [
+  //         Positioned(
+  //           left: position.dx,
+  //           top: position.dy,
+  //           child: EmptyContextMenu(
+  //             onNewFolder: () {
+  //               Navigator.pop(context);
+  //               showDialog(
+  //                 context: context,
+  //                 builder: (context) => NewFolderDialog(
+  //                   onCreateFolder: (name) {
+  //                     final state = this.context.read<FileManagerBloc>().state;
+  //                     if (state is FileManagerLoaded) {
+  //                       context.read<FileManagerBloc>().add(CreateNewFolderEvent(name));
+  //                     }
+  //                   },
+  //                 ),
+  //               );
+  //             },
+  //             onNewDocument: () {
+  //               Navigator.pop(context);
+  //               _showNewDocumentDialog();
+  //             },
+  //             onOpenWith: () {
+  //               Navigator.pop(context);
+  //               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Open With not implemented')));
+  //             },
+  //             onOpenInConsole: () {
+  //               Navigator.pop(context);
+  //               _openTerminalAtCurrentPath();
+  //             },
+  //             onPaste: ClipboardService.instance.hasItems ? () {
+  //               Navigator.pop(context);
+  //               _pasteFiles();
+  //             } : null,
+  //             onSelectAll: () {
+  //               Navigator.pop(context);
+  //               _selectAllFiles();
+  //             },
+  //             onProperties: () {
+  //               Navigator.pop(context);
+  //               _showPropertiesForSelectedFile();
+  //             },
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   void _showNewDocumentDialog() {
     showDialog<void>(
@@ -483,6 +494,7 @@ if __name__ == '__main__':
       },
       child: Container(
         decoration: BoxDecoration(
+          // ignore: deprecated_member_use
           color: isSelected ? const Color(0xFF007AFF).withOpacity(0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: isSelected ? Border.all(color: const Color(0xFF007AFF), width: 2) : null,
