@@ -43,6 +43,9 @@ dependencies:
   
   # SVG support
   flutter_svg: ^2.2.2
+  
+  # Markdown rendering
+  markdown_widget: ^2.3.2+8
 
 dev_dependencies:
   flutter_test:

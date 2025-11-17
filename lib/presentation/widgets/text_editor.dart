@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
 import 'package:path/path.dart' as p;
+import 'package:markdown_widget/widget/markdown.dart';
 
 /// A very small, local syntax-highlighting controller. It subclasses
 /// [TextEditingController] and overrides [buildTextSpan] to return a
@@ -280,6 +281,7 @@ class _TextEditorPageState extends State<TextEditorPage> {
   @override
   Widget build(BuildContext context) {
     final fileName = p.basename(widget.filePath);
+    final isMarkdown = _isMarkdownFile(widget.filePath);
 
     return WillPopScope(
       onWillPop: () async {
@@ -359,140 +361,338 @@ class _TextEditorPageState extends State<TextEditorPage> {
             ),
           ],
         ),
-        body: Focus(
-          onKey: (node, event) {
-            // Ctrl+S to save
-            if (event.isControlPressed && event.logicalKey.keyLabel == 's') {
-              if (_isModified) _saveFile();
-              return KeyEventResult.handled;
-            }
-            // Ctrl+Z to undo
-            if (event.isControlPressed && event.logicalKey.keyLabel == 'z') {
-              _handleUndo();
-              return KeyEventResult.handled;
-            }
-            // Ctrl+Y to redo
-            if (event.isControlPressed && event.logicalKey.keyLabel == 'y') {
-              _handleRedo();
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          },
-          child: Column(
-            children: [
-              Container(
-                decoration: const BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: Color(0xFF404040),
-                      width: 1,
+        body: isMarkdown ? _buildMarkdownEditor() : _buildRegularEditor(),
+      ),
+    );
+  }
+
+  /// Build the regular editor UI for non-markdown files
+  Widget _buildRegularEditor() {
+    return Focus(
+      onKey: (node, event) {
+        // Ctrl+S to save
+        if (event.isControlPressed && event.logicalKey.keyLabel == 's') {
+          if (_isModified) _saveFile();
+          return KeyEventResult.handled;
+        }
+        // Ctrl+Z to undo
+        if (event.isControlPressed && event.logicalKey.keyLabel == 'z') {
+          _handleUndo();
+          return KeyEventResult.handled;
+        }
+        // Ctrl+Y to redo
+        if (event.isControlPressed && event.logicalKey.keyLabel == 'y') {
+          _handleRedo();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Column(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Color(0xFF404040),
+                  width: 1,
+                ),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Text(
+                  'Line ${_getLineNumber()}, Column ${_getColumnNumber()}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white54,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  _getFileSize(),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                // Line number gutter
+                Container(
+                  width: 50,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      right: BorderSide(
+                        color: Color(0xFF404040),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(
+                      _getLineCount(),
+                      (index) => SizedBox(
+                        height: 23.6,
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white38,
+                            fontFamily: 'Courier New',
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    Text(
-                      'Line ${_getLineNumber()}, Column ${_getColumnNumber()}',
+                // Text editor
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: TextField(
+                      controller: _controller,
+                      maxLines: null,
+                      expands: true,
                       style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white54,
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontFamily: 'Courier New',
+                        height: 1.7,
                       ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      _getFileSize(),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white54,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Row(
-                  children: [
-                    // Line number gutter
-                    Container(
-                      width: 50,
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          right: BorderSide(
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderSide: const BorderSide(
                             color: Color(0xFF404040),
-                            width: 1,
                           ),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: List.generate(
-                          _getLineCount(),
-                          (index) => SizedBox(
-                            height: 23.6,
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white38,
-                                fontFamily: 'Courier New',
-                              ),
-                            ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: Color(0xFF404040),
                           ),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ),
-                    ),
-                    // Text editor
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: TextField(
-                          controller: _controller,
-                          maxLines: null,
-                          expands: true,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                            fontFamily: 'Courier New',
-                            height: 1.7,
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: Color(0xFF007AFF),
                           ),
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: Color(0xFF404040),
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: Color(0xFF404040),
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: Color(0xFF007AFF),
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            filled: true,
-                            fillColor: const Color.fromARGB(188, 0, 0, 0),
-                            hintText: 'Start typing...',
-                            hintStyle: const TextStyle(
-                              color: Colors.white24,
-                            ),
-                            contentPadding: const EdgeInsets.all(12),
-                          ),
+                          borderRadius: BorderRadius.circular(8),
                         ),
+                        filled: true,
+                        fillColor: const Color.fromARGB(188, 0, 0, 0),
+                        hintText: 'Start typing...',
+                        hintStyle: const TextStyle(
+                          color: Colors.white24,
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
                       ),
                     ),
-                  ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build the markdown editor with split-screen view (code + preview)
+  Widget _buildMarkdownEditor() {
+    return Focus(
+      onKey: (node, event) {
+        // Ctrl+S to save
+        if (event.isControlPressed && event.logicalKey.keyLabel == 's') {
+          if (_isModified) _saveFile();
+          return KeyEventResult.handled;
+        }
+        // Ctrl+Z to undo
+        if (event.isControlPressed && event.logicalKey.keyLabel == 'z') {
+          _handleUndo();
+          return KeyEventResult.handled;
+        }
+        // Ctrl+Y to redo
+        if (event.isControlPressed && event.logicalKey.keyLabel == 'y') {
+          _handleRedo();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Row(
+        children: [
+          // Left side: Markdown code editor
+          Expanded(
+            child: Column(
+              children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Color(0xFF404040),
+                        width: 1,
+                      ),
+                      right: BorderSide(
+                        color: Color(0xFF404040),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Line ${_getLineNumber()}, Column ${_getColumnNumber()}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white54,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _getFileSize(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      // Line number gutter
+                      Container(
+                        width: 50,
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            right: BorderSide(
+                              color: Color(0xFF404040),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: List.generate(
+                            _getLineCount(),
+                            (index) => SizedBox(
+                              height: 23.6,
+                              child: Text(
+                                '${index + 1}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white38,
+                                  fontFamily: 'Courier New',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Text editor
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: TextField(
+                            controller: _controller,
+                            maxLines: null,
+                            expands: true,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                              fontFamily: 'Courier New',
+                              height: 1.7,
+                            ),
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF404040),
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF404040),
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF007AFF),
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              filled: true,
+                              fillColor: const Color.fromARGB(188, 0, 0, 0),
+                              hintText: 'Start typing...',
+                              hintStyle: const TextStyle(
+                                color: Colors.white24,
+                              ),
+                              contentPadding: const EdgeInsets.all(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Right side: Markdown preview
+          Expanded(
+            child: Container(
+              decoration: const BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: Color(0xFF404040),
+                    width: 1,
+                  ),
                 ),
               ),
-            ],
+              child: Column(
+                children: [
+                  Container(
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Color(0xFF404040),
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: const Text(
+                      'Preview',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: MarkdownWidget(
+                        data: _controller.text,
+                        shrinkWrap: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -551,6 +751,10 @@ class _TextEditorPageState extends State<TextEditorPage> {
 
   bool _isSupportedFile(String extension) {
     return ['.sh', '.dart', '.py'].contains(extension.toLowerCase());
+  }
+
+  bool _isMarkdownFile(String filePath) {
+    return p.extension(filePath).toLowerCase() == '.md';
   }
 
   Future<String> _executeFile() async {
