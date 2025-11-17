@@ -416,14 +416,13 @@ class _TextEditorPageState extends State<TextEditorPage> {
                           ),
                         ),
                       ),
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ListView.builder(
-                        itemCount: _getLineCount(),
-                        controller: ScrollController(),
-                        itemBuilder: (context, index) {
-                          return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: List.generate(
+                          _getLineCount(),
+                          (index) => SizedBox(
                             height: 23.6,
-                            alignment: Alignment.centerRight,
                             child: Text(
                               '${index + 1}',
                               style: const TextStyle(
@@ -432,8 +431,8 @@ class _TextEditorPageState extends State<TextEditorPage> {
                                 fontFamily: 'Courier New',
                               ),
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       ),
                     ),
                     // Text editor
@@ -448,6 +447,7 @@ class _TextEditorPageState extends State<TextEditorPage> {
                             color: Colors.white70,
                             fontSize: 14,
                             fontFamily: 'Courier New',
+                            height: 1.7,
                           ),
                           decoration: InputDecoration(
                             border: OutlineInputBorder(
