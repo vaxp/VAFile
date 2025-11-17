@@ -184,6 +184,10 @@ class _TextEditorPageState extends State<TextEditorPage> {
   bool _isModified = false;
   bool _isSaving = false;
   late UndoRedoManager _undoRedoManager;
+  late ScrollController _editorTextScrollController;
+  late ScrollController _editorLineNumbersScrollController;
+  late ScrollController _previewScrollController;
+  bool _isSyncingScroll = false;
 
   @override
   void initState() {
@@ -191,8 +195,31 @@ class _TextEditorPageState extends State<TextEditorPage> {
     _file = File(widget.filePath);
     _controller = SyntaxHighlightingController();
     _undoRedoManager = UndoRedoManager();
+    _editorTextScrollController = ScrollController();
+    _editorLineNumbersScrollController = ScrollController();
+    _previewScrollController = ScrollController();
     _loadFile();
     _controller.addListener(_onContentChanged);
+    
+    // Sync line numbers scroll with editor text scroll
+    _editorTextScrollController.addListener(() {
+      if (!_isSyncingScroll && _editorLineNumbersScrollController.hasClients && _previewScrollController.hasClients) {
+        _isSyncingScroll = true;
+        _editorLineNumbersScrollController.jumpTo(_editorTextScrollController.offset);
+        _previewScrollController.jumpTo(_editorTextScrollController.offset);
+        _isSyncingScroll = false;
+      }
+    });
+    
+    // Sync preview scroll to editor text
+    _previewScrollController.addListener(() {
+      if (!_isSyncingScroll && _editorTextScrollController.hasClients && _editorLineNumbersScrollController.hasClients) {
+        _isSyncingScroll = true;
+        _editorTextScrollController.jumpTo(_previewScrollController.offset);
+        _editorLineNumbersScrollController.jumpTo(_previewScrollController.offset);
+        _isSyncingScroll = false;
+      }
+    });
   }
 
   Future<void> _loadFile() async {
@@ -275,6 +302,9 @@ class _TextEditorPageState extends State<TextEditorPage> {
   @override
   void dispose() {
     _controller.dispose();
+    _editorTextScrollController.dispose();
+    _editorLineNumbersScrollController.dispose();
+    _previewScrollController.dispose();
     super.dispose();
   }
 
@@ -422,76 +452,84 @@ class _TextEditorPageState extends State<TextEditorPage> {
           Expanded(
             child: Row(
               children: [
-                // Line number gutter
-                Container(
-                  width: 50,
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      right: BorderSide(
-                        color: Color(0xFF404040),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: List.generate(
-                      _getLineCount(),
-                      (index) => SizedBox(
-                        height: 23.6,
-                        child: Text(
-                          '${index + 1}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white38,
-                            fontFamily: 'Courier New',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // Text editor
+                // Text editor with integrated line numbers
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: TextField(
-                      controller: _controller,
-                      maxLines: null,
-                      expands: true,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        fontFamily: 'Courier New',
-                        height: 1.7,
-                      ),
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderSide: const BorderSide(
-                            color: Color(0xFF404040),
+                    child: SingleChildScrollView(
+                      controller: _editorTextScrollController,
+                      child: TextField(
+                        controller: _controller,
+                        maxLines: null,
+                        expands: false,
+                        minLines: null,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          fontFamily: 'Courier New',
+                          height: 1.7,
+                        ),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderSide: const BorderSide(
+                              color: Color(0xFF404040),
+                            ),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(
-                            color: Color(0xFF404040),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(
+                              color: Color(0xFF404040),
+                            ),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(
-                            color: Color(0xFF007AFF),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(
+                              color: Color(0xFF007AFF),
+                            ),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          borderRadius: BorderRadius.circular(8),
+                          filled: true,
+                          fillColor: const Color.fromARGB(188, 0, 0, 0),
+                          hintText: 'Start typing...',
+                          hintStyle: const TextStyle(
+                            color: Colors.white24,
+                          ),
+                          contentPadding: const EdgeInsets.all(12),
+                          // Prefix with line numbers
+                          prefixIcon: Container(
+                            width: 50,
+                            padding: const EdgeInsets.only(right: 8),
+                            constraints: const BoxConstraints(maxWidth: 50),
+                            child: SingleChildScrollView(
+                              controller: _editorLineNumbersScrollController,
+                              physics: const NeverScrollableScrollPhysics(),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                mainAxisSize: MainAxisSize.max,
+                                children: List.generate(
+                                  _getLineCount(),
+                                  (index) => Container(
+                                    height: 23.6,
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white24,
+                                        fontFamily: 'Courier New',
+                                        height: 1.7,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          prefixIconConstraints: const BoxConstraints(
+                            minWidth: 50,
+                            maxWidth: 50,
+                          ),
                         ),
-                        filled: true,
-                        fillColor: const Color.fromARGB(188, 0, 0, 0),
-                        hintText: 'Start typing...',
-                        hintStyle: const TextStyle(
-                          color: Colors.white24,
-                        ),
-                        contentPadding: const EdgeInsets.all(12),
                       ),
                     ),
                   ),
@@ -568,76 +606,84 @@ class _TextEditorPageState extends State<TextEditorPage> {
                 Expanded(
                   child: Row(
                     children: [
-                      // Line number gutter
-                      Container(
-                        width: 50,
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            right: BorderSide(
-                              color: Color(0xFF404040),
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: List.generate(
-                            _getLineCount(),
-                            (index) => SizedBox(
-                              height: 23.6,
-                              child: Text(
-                                '${index + 1}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white38,
-                                  fontFamily: 'Courier New',
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Text editor
+                      // Text editor with integrated line numbers
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
-                          child: TextField(
-                            controller: _controller,
-                            maxLines: null,
-                            expands: true,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                              fontFamily: 'Courier New',
-                              height: 1.7,
-                            ),
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF404040),
+                          child: SingleChildScrollView(
+                            controller: _editorTextScrollController,
+                            child: TextField(
+                              controller: _controller,
+                              maxLines: null,
+                              expands: false,
+                              minLines: null,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                                fontFamily: 'Courier New',
+                                height: 1.7,
+                              ),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF404040),
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF404040),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF404040),
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF007AFF),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF007AFF),
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                borderRadius: BorderRadius.circular(8),
+                                filled: true,
+                                fillColor: const Color.fromARGB(188, 0, 0, 0),
+                                hintText: 'Start typing...',
+                                hintStyle: const TextStyle(
+                                  color: Colors.white24,
+                                ),
+                                contentPadding: const EdgeInsets.all(12),
+                                // Prefix with line numbers
+                                prefixIcon: Container(
+                                  width: 50,
+                                  padding: const EdgeInsets.only(right: 8),
+                                  constraints: const BoxConstraints(maxWidth: 50),
+                                  child: SingleChildScrollView(
+                                    controller: _editorLineNumbersScrollController,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      mainAxisSize: MainAxisSize.max,
+                                      children: List.generate(
+                                        _getLineCount(),
+                                        (index) => Container(
+                                          height: 23.6,
+                                          alignment: Alignment.centerRight,
+                                          child: Text(
+                                            '${index + 1}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.white24,
+                                              fontFamily: 'Courier New',
+                                              height: 1.7,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                prefixIconConstraints: const BoxConstraints(
+                                  minWidth: 50,
+                                  maxWidth: 50,
+                                ),
                               ),
-                              filled: true,
-                              fillColor: const Color.fromARGB(188, 0, 0, 0),
-                              hintText: 'Start typing...',
-                              hintStyle: const TextStyle(
-                                color: Colors.white24,
-                              ),
-                              contentPadding: const EdgeInsets.all(12),
                             ),
                           ),
                         ),
@@ -680,11 +726,32 @@ class _TextEditorPageState extends State<TextEditorPage> {
                     ),
                   ),
                   Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: MarkdownWidget(
-                        data: _controller.text,
-                        shrinkWrap: true,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: const Color(0xFF404040),
+                            width: 1,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: SingleChildScrollView(
+                          controller: _previewScrollController,
+                          padding: const EdgeInsets.all(12),
+                          child: DefaultTextStyle(
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                              fontFamily: 'Courier New',
+                              height: 1.7,
+                            ),
+                            child: MarkdownWidget(
+                              data: _controller.text,
+                              shrinkWrap: true,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
