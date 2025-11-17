@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:path/path.dart' as p;
 
 /// A very small, local syntax-highlighting controller. It subclasses
@@ -327,6 +328,12 @@ class _TextEditorPageState extends State<TextEditorPage> {
                   ),
                 ),
               ),
+            if (_isSupportedFile(p.extension(widget.filePath)))
+              IconButton(
+                icon: const Icon(Icons.play_arrow, color: Colors.green),
+                tooltip: 'Run',
+                onPressed: _runFile,
+              ),
             IconButton(
               icon: Icon(
                 _isSaving ? Icons.hourglass_bottom : Icons.save,
@@ -524,6 +531,132 @@ class _TextEditorPageState extends State<TextEditorPage> {
   int _getLineCount() {
     if (_controller.text.isEmpty) return 1;
     return '\n'.allMatches(_controller.text).length + 1;
+  }
+
+  Future<void> _runFile() async {
+    final extension = p.extension(widget.filePath);
+    if (!_isSupportedFile(extension)) {
+      _showErrorDialog('File type not supported', 'Only .sh, .dart, and .py files are supported.');
+      return;
+    }
+
+    // Save the file first before running
+    if (_isModified) {
+      await _saveFile();
+    }
+
+    _showExecutionDialog();
+  }
+
+  bool _isSupportedFile(String extension) {
+    return ['.sh', '.dart', '.py'].contains(extension.toLowerCase());
+  }
+
+  Future<String> _executeFile() async {
+    final extension = p.extension(widget.filePath).toLowerCase();
+    final filePath = widget.filePath;
+    
+    try {
+      ProcessResult result;
+      
+      switch (extension) {
+        case '.sh':
+          result = await Process.run('bash', [filePath]);
+          break;
+        case '.dart':
+          result = await Process.run('dart', [filePath]);
+          break;
+        case '.py':
+          result = await Process.run('python3', [filePath]);
+          break;
+        default:
+          return 'Unsupported file type';
+      }
+
+      final stdout = result.stdout.toString();
+      final stderr = result.stderr.toString();
+      final exitCode = result.exitCode;
+
+      if (exitCode == 0) {
+        return stdout.isNotEmpty ? stdout : '(No output)';
+      } else {
+        return 'Exit code: $exitCode\n\nError:\n$stderr';
+      }
+    } catch (e) {
+      return 'Error running file: $e';
+    }
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+        title: Text(
+          title,
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Close',
+              style: TextStyle(color: Color(0xFF007AFF)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showExecutionDialog() async {
+    final output = await _executeFile();
+    
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+        title: const Text(
+          'Execution Output',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.8,
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
+          ),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFF404040)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: SingleChildScrollView(
+            child: SelectableText(
+              output,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontFamily: 'Courier New',
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Close',
+              style: TextStyle(color: Color(0xFF007AFF)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<bool> _showUnsavedChangesDialog() async {
