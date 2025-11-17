@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:async';
+import 'dart:ui';
 import 'package:path/path.dart' as p;
 
 /// A very small, local syntax-highlighting controller. It subclasses
@@ -620,41 +621,44 @@ class _TextEditorPageState extends State<TextEditorPage> {
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromARGB(188, 0, 0, 0),
-        title: const Text(
-          'Execution Output',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Container(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.8,
-            maxHeight: MediaQuery.of(context).size.height * 0.6,
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+        child: AlertDialog(
+          backgroundColor: const Color.fromARGB(0, 0, 0, 0),
+          title: const Text(
+            'Execution Output',
+            style: TextStyle(color: Colors.white),
           ),
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFF404040)),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: SingleChildScrollView(
-            child: SelectableText(
-              output,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                fontFamily: 'Courier New',
+          content: Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.85,
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+            ),
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color.fromARGB(0, 0, 0, 0)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                output,
+                style: const TextStyle(
+                  color: Color.fromARGB(255, 255, 255, 255),
+                  fontSize: 12,
+                  fontFamily: 'Courier New',
+                ),
               ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Close',
-              style: TextStyle(color: Color(0xFF007AFF)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Color(0xFF007AFF)),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
