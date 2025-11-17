@@ -7,8 +7,11 @@ import 'package:flutter/rendering.dart';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../infrastructure/clipboard_service.dart';
 import '../../infrastructure/file_manager_repository_impl.dart';
+import '../../infrastructure/desktop_launcher_service.dart';
+import '../../infrastructure/thumbnail_manager.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../application/file_manager/file_manager_bloc.dart';
 import '../../domain/vaxp.dart';
@@ -16,6 +19,7 @@ import 'context_menu.dart';
 import 'dialogs/new_folder_dialog.dart';
 import 'media_viewer.dart';
 import 'deb_installer_dialog.dart';
+import 'text_editor.dart';
 
 class FileGridView extends StatefulWidget {
   const FileGridView({super.key});
@@ -28,10 +32,22 @@ class _FileGridViewState extends State<FileGridView> {
   final ScrollController _scrollController = ScrollController();
   FileItem? _selectedFile;
   List<FileItem> _selectedFiles = [];
+  late final ThumbnailManager _thumbnailManager;
+  
+  // Drag-to-select state
+  Offset? _selectionStart;
+  Offset? _selectionEnd;
+  bool _isDragging = false;
+  final Map<FileItem, GlobalKey> _fileItemKeys = {};
+  static const double _dragThreshold = 5.0; // Minimum distance to start drag selection
+  
+  // Drag and drop state
+  List<FileItem>? _draggedFiles; // Files currently being dragged
 
   @override
   void initState() {
     super.initState();
+    _thumbnailManager = ThumbnailManager();
     _setupKeyboardShortcuts();
   }
 
@@ -78,6 +94,7 @@ class _FileGridViewState extends State<FileGridView> {
     // ignore: deprecated_member_use
     RawKeyboard.instance.removeListener(_handleKeyEvent);
     _scrollController.dispose();
+    _thumbnailManager.clearCache();
     super.dispose();
   }
 
@@ -90,6 +107,9 @@ class _FileGridViewState extends State<FileGridView> {
         } else if (state is FileManagerError) {
           return Center(child: Text(state.message, style: const TextStyle(color: Colors.red)));
         } else if (state is FileManagerLoaded) {
+          // Clean up keys for files that no longer exist
+          _fileItemKeys.removeWhere((file, _) => !state.filteredFiles.contains(file));
+          
           switch (state.viewMode) {
             case ViewMode.grid:
               return _buildGridView(state);
@@ -108,35 +128,98 @@ class _FileGridViewState extends State<FileGridView> {
 
   Widget _buildGridView(FileManagerLoaded state) {
     return GestureDetector(
-      behavior: HitTestBehavior.deferToChild,
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (!_isDragging) {
+          _clearSelection();
+        }
+      },
+      onPanStart: (details) {
+        // Store the start position but don't start dragging yet
+        _selectionStart = details.localPosition;
+        _selectionEnd = details.localPosition;
+      },
+      onPanUpdate: (details) {
+        if (_selectionStart != null) {
+          final distance = (details.localPosition - _selectionStart!).distance;
+          
+          // Only start dragging if moved beyond threshold
+          if (!_isDragging && distance > _dragThreshold) {
+            setState(() {
+              _isDragging = true;
+              _selectionEnd = details.localPosition;
+            });
+          }
+          
+          if (_isDragging) {
+            setState(() {
+              _selectionEnd = details.localPosition;
+              _updateSelectionFromRectangle(state);
+            });
+          }
+        }
+      },
+      onPanEnd: (details) {
+        // If we were dragging, keep the selection; otherwise clear it
+        if (!_isDragging && _selectionStart != null) {
+          // This was just a tap, clear selection
+          _clearSelection();
+        }
+        setState(() {
+          _isDragging = false;
+          _selectionStart = null;
+          _selectionEnd = null;
+        });
+      },
+      onPanCancel: () {
+        setState(() {
+          _isDragging = false;
+          _selectionStart = null;
+          _selectionEnd = null;
+        });
+      },
       onSecondaryTapDown: (details) {
-        final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-        final local = overlay.globalToLocal(details.globalPosition);
-        _showAdaptiveContextMenu(local);
+        if (!_isDragging) {
+          final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+          final local = overlay.globalToLocal(details.globalPosition);
+          _showAdaptiveContextMenu(local);
+        }
       },
-      child: GridView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 1.2,
-      ),
-      itemCount: state.filteredFiles.length,
-      itemBuilder: (context, index) {
-        final file = state.filteredFiles[index];
-        final isSelected = _selectedFiles.contains(file);
-        
-        return _buildFileItem(file, isSelected);
-      },
+      child: Stack(
+        children: [
+          GridView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: 35,
+              mainAxisSpacing: 35,
+              childAspectRatio: 1.2,
+            ),
+            itemCount: state.filteredFiles.length,
+            itemBuilder: (context, index) {
+              final file = state.filteredFiles[index];
+              final isSelected = _selectedFiles.contains(file);
+              
+              // Create or get key for this file item
+              if (!_fileItemKeys.containsKey(file)) {
+                _fileItemKeys[file] = GlobalKey();
+              }
+              
+              return _buildFileItem(file, isSelected, key: _fileItemKeys[file]);
+            },
+          ),
+          if (_isDragging && _selectionStart != null && _selectionEnd != null)
+            _buildSelectionRectangle(),
+        ],
       ),
     );
   }
 
   Widget _buildListView(FileManagerLoaded state) {
     return GestureDetector(
-      behavior: HitTestBehavior.deferToChild,
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _clearSelection(),
       onSecondaryTapDown: (details) {
         final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
         final local = overlay.globalToLocal(details.globalPosition);
@@ -158,7 +241,8 @@ class _FileGridViewState extends State<FileGridView> {
 
   Widget _buildColumnView(FileManagerLoaded state) {
     return GestureDetector(
-      behavior: HitTestBehavior.deferToChild,
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _clearSelection(),
       onSecondaryTapDown: (details) {
         final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
         final local = overlay.globalToLocal(details.globalPosition);
@@ -181,7 +265,8 @@ class _FileGridViewState extends State<FileGridView> {
 
   Widget _buildGalleryView(FileManagerLoaded state) {
     return GestureDetector(
-      behavior: HitTestBehavior.deferToChild,
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _clearSelection(),
       onSecondaryTapDown: (details) {
         final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
         final local = overlay.globalToLocal(details.globalPosition);
@@ -207,60 +292,7 @@ class _FileGridViewState extends State<FileGridView> {
     );
   }
 
-  // void _showEmptyContextMenu(Offset position) {
-  //   showDialog(
-  //     context: context,
-  //     barrierColor: Colors.transparent,
-  //     builder: (context) => Stack(
-  //       children: [
-  //         Positioned(
-  //           left: position.dx,
-  //           top: position.dy,
-  //           child: EmptyContextMenu(
-  //             onNewFolder: () {
-  //               Navigator.pop(context);
-  //               showDialog(
-  //                 context: context,
-  //                 builder: (context) => NewFolderDialog(
-  //                   onCreateFolder: (name) {
-  //                     final state = this.context.read<FileManagerBloc>().state;
-  //                     if (state is FileManagerLoaded) {
-  //                       context.read<FileManagerBloc>().add(CreateNewFolderEvent(name));
-  //                     }
-  //                   },
-  //                 ),
-  //               );
-  //             },
-  //             onNewDocument: () {
-  //               Navigator.pop(context);
-  //               _showNewDocumentDialog();
-  //             },
-  //             onOpenWith: () {
-  //               Navigator.pop(context);
-  //               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Open With not implemented')));
-  //             },
-  //             onOpenInConsole: () {
-  //               Navigator.pop(context);
-  //               _openTerminalAtCurrentPath();
-  //             },
-  //             onPaste: ClipboardService.instance.hasItems ? () {
-  //               Navigator.pop(context);
-  //               _pasteFiles();
-  //             } : null,
-  //             onSelectAll: () {
-  //               Navigator.pop(context);
-  //               _selectAllFiles();
-  //             },
-  //             onProperties: () {
-  //               Navigator.pop(context);
-  //               _showPropertiesForSelectedFile();
-  //             },
-  //           ),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
+
 
   void _showNewDocumentDialog() {
     showDialog<void>(
@@ -482,113 +514,448 @@ if __name__ == '__main__':
     }
   }
 
-  Widget _buildFileItem(FileItem file, bool isSelected) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _onFileTap(file),
-      onDoubleTap: () => _openFile(file),
-      onSecondaryTapDown: (details) {
-        final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-        final local = overlay.globalToLocal(details.globalPosition);
-        _showAdaptiveContextMenu(local, file: file);
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          // ignore: deprecated_member_use
-          color: isSelected ? const Color(0xFF007AFF).withOpacity(0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: isSelected ? Border.all(color: const Color(0xFF007AFF), width: 2) : null,
+  Future<void> _launchDesktopFile(FileItem file) async {
+    try {
+      await DesktopLauncherService.launch(file.path);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Launched: ${file.name}')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to launch: $e'),
+          backgroundColor: Colors.red[700],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(
-              flex: 3,
-              child: _buildFileIcon(file),
+      );
+    }
+  }
+
+  Widget _buildFileItem(FileItem file, bool isSelected, {Key? key}) {
+    // Determine which files to drag (selected files if this one is selected, otherwise just this file)
+    final filesToDrag = isSelected && _selectedFiles.isNotEmpty 
+        ? _selectedFiles 
+        : [file];
+    
+    // Check if this file is being dragged
+    final isBeingDragged = _draggedFiles != null && _draggedFiles!.contains(file);
+    
+    // If it's a folder, make it a drop target; otherwise make it draggable
+    if (file.isDirectory) {
+      return _buildFolderItem(file, isSelected, filesToDrag, isBeingDragged, key: key);
+    } else {
+      return _buildDraggableFileItem(file, isSelected, filesToDrag, isBeingDragged, key: key);
+    }
+  }
+  
+  Widget _buildDraggableFileItem(FileItem file, bool isSelected, List<FileItem> filesToDrag, bool isBeingDragged, {Key? key}) {
+    return Draggable<List<FileItem>>(
+      key: key,
+      data: filesToDrag,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(
+          opacity: 0.7,
+          child: Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: const Color(0xFF007AFF).withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF007AFF), width: 2),
             ),
-            Expanded(
-              flex: 1,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  file.name,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isSelected ? const Color(0xFF007AFF) : Colors.white70,
-                    fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  filesToDrag.length > 1 ? Icons.folder : Icons.insert_drive_file,
+                  color: const Color(0xFF007AFF),
+                  size: 32,
                 ),
+                if (filesToDrag.length > 1)
+                  Text(
+                    '${filesToDrag.length} items',
+                    style: const TextStyle(
+                      color: Color(0xFF007AFF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.3,
+        child: _buildFileItemContent(file, isSelected),
+      ),
+      onDragStarted: () {
+        setState(() {
+          _draggedFiles = filesToDrag;
+        });
+      },
+      onDragEnd: (details) {
+        setState(() {
+          _draggedFiles = null;
+        });
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (!_isDragging && !isBeingDragged) {
+            _onFileTap(file);
+          }
+        },
+        onDoubleTap: () {
+          if (!_isDragging && !isBeingDragged) {
+            _openFile(file);
+          }
+        },
+        onSecondaryTapDown: (details) {
+          if (!_isDragging && !isBeingDragged) {
+            final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+            final local = overlay.globalToLocal(details.globalPosition);
+            _showAdaptiveContextMenu(local, file: file);
+          }
+        },
+        child: _buildFileItemContent(file, isSelected),
+      ),
+    );
+  }
+  
+  Widget _buildFolderItem(FileItem folder, bool isSelected, List<FileItem> filesToDrag, bool isBeingDragged, {Key? key}) {
+    final canAcceptDrop = _draggedFiles != null && 
+                         _draggedFiles!.isNotEmpty &&
+                         !_draggedFiles!.any((f) => f.path == folder.path || f.path.startsWith('${folder.path}/'));
+    
+    // Wrap folder in Draggable so it can be dragged into other folders
+    return Draggable<List<FileItem>>(
+      key: key,
+      data: filesToDrag,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(
+          opacity: 0.7,
+          child: Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: const Color(0xFF007AFF).withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF007AFF), width: 2),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.folder,
+                  color: Color(0xFF007AFF),
+                  size: 32,
+                ),
+                if (filesToDrag.length > 1)
+                  Text(
+                    '${filesToDrag.length} items',
+                    style: const TextStyle(
+                      color: Color(0xFF007AFF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.3,
+        child: _buildFolderDropTarget(folder, isSelected, canAcceptDrop),
+      ),
+      onDragStarted: () {
+        setState(() {
+          _draggedFiles = filesToDrag;
+        });
+      },
+      onDragEnd: (details) {
+        setState(() {
+          _draggedFiles = null;
+        });
+      },
+      child: _buildFolderDropTarget(folder, isSelected, canAcceptDrop),
+    );
+  }
+  
+  Widget _buildFolderDropTarget(FileItem folder, bool isSelected, bool canAcceptDrop) {
+    final isBeingDragged = _draggedFiles != null && _draggedFiles!.contains(folder);
+    
+    // Recalculate canAcceptDrop based on current state
+    final canAccept = _draggedFiles != null && 
+                     _draggedFiles!.isNotEmpty &&
+                     !_draggedFiles!.any((f) => f.path == folder.path || f.path.startsWith('${folder.path}/'));
+    
+    return DragTarget<List<FileItem>>(
+      onWillAcceptWithDetails: (data) {
+        // ignore: dead_code, unnecessary_null_comparison
+        if (data == null) return false;
+        // Don't allow dropping into the same folder or into a subfolder of dragged items
+        return !data.data.any((f) => f.path == folder.path || f.path.startsWith('${folder.path}/'));
+      },
+      onAcceptWithDetails: (data) {
+        _handleDrop(data.data, folder);
+      },
+      onLeave: (data) {
+        // Folder is no longer a drop target
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHighlighted = candidateData.isNotEmpty && canAccept;
+        
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (!_isDragging && !isBeingDragged) {
+              _onFileTap(folder);
+            }
+          },
+          onDoubleTap: () {
+            if (!_isDragging && !isBeingDragged) {
+              _openFile(folder);
+            }
+          },
+          onSecondaryTapDown: (details) {
+            if (!_isDragging && !isBeingDragged) {
+              final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+              final local = overlay.globalToLocal(details.globalPosition);
+              _showAdaptiveContextMenu(local, file: folder);
+            }
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              // ignore: deprecated_member_use
+              color: isHighlighted 
+                  ? const Color.fromARGB(255, 0, 255, 170).withOpacity(0.4)
+                  : isSelected 
+                      ? const Color.fromARGB(255, 0, 255, 170).withOpacity(0.2) 
+                      : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              border: isHighlighted
+                  ? Border.all(color: const Color.fromARGB(255, 0, 255, 170), width: 3)
+                  : isSelected 
+                      ? Border.all(color: const Color.fromARGB(255, 0, 255, 170), width: 2) 
+                      : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      _buildFileIcon(folder),
+                      if (isHighlighted)
+                        const Icon(
+                          Icons.file_download,
+                          color: Color(0xFF007AFF),
+                          size: 48,
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      folder.name,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isHighlighted || isSelected 
+                            ? const Color.fromARGB(255, 0, 255, 170)
+                            : Colors.white70,
+                        fontWeight: isHighlighted || isSelected 
+                            ? FontWeight.w600 
+                            : FontWeight.normal,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildFileItemContent(FileItem file, bool isSelected) {
+    return Container(
+      decoration: BoxDecoration(
+        // ignore: deprecated_member_use
+        color: isSelected ? const Color.fromARGB(255, 0, 255, 170).withOpacity(0.2) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        border: isSelected ? Border.all(color: const Color.fromARGB(255, 0, 255, 170), width: 2) : null,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 3,
+            child: _buildFileIcon(file),
+          ),
+          Expanded(
+            flex: 1,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                file.name,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isSelected ? const Color.fromARGB(255, 0, 255, 170) : Colors.white70,
+                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _handleDrop(List<FileItem> files, FileItem targetFolder) {
+    setState(() {
+      _draggedFiles = null;
+    });
+    
+    // Move each file to the target folder
+    for (final file in files) {
+      context.read<FileManagerBloc>().add(MoveFile(file, targetFolder.path));
+    }
+    
+    // Clear selection after drop
+    setState(() {
+      _selectedFiles.clear();
+      _selectedFile = null;
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Moved ${files.length} item${files.length > 1 ? 's' : ''} to ${targetFolder.name}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Gets the icon path for a folder based on its name
+  /// Returns the matching icon path or 'icons/folder.svg' as default
+  String _getFolderIconPath(String folderName) {
+    final normalizedName = folderName.toLowerCase();
+    return 'icons/cyan-folder-$normalizedName.svg';
+  }
+
+  /// Widget that tries to load a folder icon and falls back to default if not found
+  Widget _buildFolderIcon(String folderName) {
+    final iconPath = _getFolderIconPath(folderName);
+    
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: _FolderIconWidget(
+        iconPath: iconPath,
+        fallbackPath: 'icons/folder.svg',
       ),
     );
   }
 
   Widget _buildFileIcon(FileItem file) {
+    if (file.isDirectory) {
+      // Use SVG icon for folders
+      return _buildFolderIcon(file.name);
+    }
+    
+    // Trigger thumbnail loading
+    _thumbnailManager.loadThumbnail(file.path, file.name);
+    
+    // Get thumbnail if available
+    final thumbnail = _thumbnailManager.getThumbnail(file.name);
+    
+    // For files, use Material icons as fallback
     IconData iconData;
     Color iconColor;
-
-    if (file.isDirectory) {
-      iconData = Icons.folder;
-      iconColor = const Color(0xFF007AFF);
-    } else {
-      // Determine icon based on file extension
-      switch (file.extension.toLowerCase()) {
-        case '.txt':
-        case '.md':
-        case '.rtf':
-          iconData = Icons.description;
-          iconColor = Colors.white70;
-          break;
-        case '.pdf':
-          iconData = Icons.picture_as_pdf;
-          iconColor = Colors.red;
-          break;
-        case '.jpg':
-        case '.jpeg':
-        case '.png':
-        case '.gif':
-        case '.bmp':
-        case '.svg':
-          iconData = Icons.image;
-          iconColor = Colors.green;
-          break;
-        case '.mp4':
-        case '.avi':
-        case '.mov':
-        case '.mkv':
-          iconData = Icons.videocam;
-          iconColor = Colors.purple;
-          break;
-        case '.mp3':
-        case '.wav':
-        case '.flac':
-        case '.aac':
-          iconData = Icons.music_note;
-          iconColor = Colors.orange;
-          break;
-        case '.zip':
-        case '.rar':
-        case '.tar':
-        case '.gz':
-          iconData = Icons.archive;
-          iconColor = Colors.brown;
-          break;
-        case '.exe':
-        case '.app':
-        case '.deb':
-          iconData = Icons.apps;
-          iconColor = Colors.blue;
-          break;
-        default:
-          iconData = Icons.insert_drive_file;
-          iconColor = Colors.white70;
-      }
+    
+    // Determine icon based on file extension
+    switch (file.extension.toLowerCase()) {
+      case '.txt':
+      case '.text':
+      case '.md':
+      case '.rtf':
+      case '.c':
+      case '.cc':
+      case '.dart':
+      case '.py':
+      case '.sh':
+      case '.html':
+      case '.js':
+      case '.ts':
+      case '.json':
+      case '.yaml':
+      case '.yml':
+        iconData = Icons.description;
+        iconColor = Colors.white70;
+        break;
+      case '.pdf':
+        iconData = Icons.picture_as_pdf;
+        iconColor = Colors.red;
+        break;
+      case '.jpg':
+      case '.jpeg':
+      case '.png':
+      case '.gif':
+      case '.bmp':
+      case '.svg':
+      case '.webp':
+        iconData = Icons.image;
+        iconColor = Colors.green;
+        break;
+      case '.mp4':
+      case '.avi':
+      case '.mov':
+      case '.mkv':
+      case '.webm':
+        iconData = Icons.videocam;
+        iconColor = Colors.purple;
+        break;
+      case '.mp3':
+      case '.wav':
+      case '.flac':
+      case '.aac':
+        iconData = Icons.music_note;
+        iconColor = Colors.orange;
+        break;
+      case '.zip':
+      case '.rar':
+      case '.tar':
+      case '.gz':
+        iconData = Icons.archive;
+        iconColor = Colors.brown;
+        break;
+      case '.exe':
+      case '.app':
+      case '.deb':
+      case '.desktop':
+        iconData = Icons.apps;
+        iconColor = Colors.blue;
+        break;
+      default:
+        iconData = Icons.insert_drive_file;
+        iconColor = Colors.white70;
     }
 
     return Container(
@@ -604,10 +971,23 @@ if __name__ == '__main__':
           width: 1,
         ),
       ),
-      child: Icon(
-        iconData,
-        size: 32,
-        color: iconColor,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: thumbnail != null
+            ? Image(
+                key: ValueKey('thumb-${file.name}'),
+                image: thumbnail,
+                width: 64,
+                height: 64,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+              )
+            : Icon(
+                key: ValueKey('icon-${file.name}'),
+                iconData,
+                size: 32,
+                color: iconColor,
+              ),
       ),
     );
   }
@@ -617,9 +997,9 @@ if __name__ == '__main__':
       margin: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
         // ignore: deprecated_member_use
-        color: isSelected ? const Color(0xFF007AFF).withOpacity(0.2) : Colors.transparent,
+        color: isSelected ? const Color.fromARGB(255, 0, 255, 170).withOpacity(0.2) : Colors.transparent,
         borderRadius: BorderRadius.circular(4),
-        border: isSelected ? Border.all(color: const Color(0xFF007AFF), width: 1) : null,
+        border: isSelected ? Border.all(color: const Color.fromARGB(255, 0, 255, 170), width: 1) : null,
       ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -635,7 +1015,7 @@ if __name__ == '__main__':
           title: Text(
             file.name,
             style: TextStyle(
-              color: isSelected ? const Color(0xFF007AFF) : Colors.white70,
+              color: isSelected ? const Color.fromARGB(255, 0, 255, 170) : Colors.white70,
               fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
             ),
           ),
@@ -654,9 +1034,9 @@ if __name__ == '__main__':
       margin: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         // ignore: deprecated_member_use
-        color: isSelected ? const Color(0xFF007AFF).withOpacity(0.2) : Colors.transparent,
+        color: isSelected ? const Color.fromARGB(255, 0, 255, 170).withOpacity(0.2) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        border: isSelected ? Border.all(color: const Color(0xFF007AFF), width: 2) : null,
+        border: isSelected ? Border.all(color: const Color.fromARGB(255, 0, 255, 170), width: 2) : null,
       ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -682,7 +1062,7 @@ if __name__ == '__main__':
                   file.name,
                   style: TextStyle(
                     fontSize: 12,
-                    color: isSelected ? const Color(0xFF007AFF) : Colors.white70,
+                    color: isSelected ? const Color.fromARGB(255, 0, 255, 170) : Colors.white70,
                     fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                   ),
                   textAlign: TextAlign.center,
@@ -702,9 +1082,9 @@ if __name__ == '__main__':
     return Container(
       decoration: BoxDecoration(
         // ignore: deprecated_member_use
-        color: isSelected ? const Color(0xFF007AFF).withOpacity(0.2) : Colors.transparent,
+        color: isSelected ? const Color.fromARGB(255, 0, 255, 170).withOpacity(0.2) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        border: isSelected ? Border.all(color: const Color(0xFF007AFF), width: 2) : null,
+        border: isSelected ? Border.all(color: const Color.fromARGB(255, 0, 255, 170), width: 2) : null,
       ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -739,7 +1119,7 @@ if __name__ == '__main__':
                 file.name,
                 style: TextStyle(
                   fontSize: 12,
-                  color: isSelected ? const Color(0xFF007AFF) : Colors.white70,
+                  color: isSelected ? const Color.fromARGB(255, 0, 255, 170): Colors.white70,
                   fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                 ),
                 textAlign: TextAlign.center,
@@ -761,12 +1141,15 @@ if __name__ == '__main__':
 
   void _onFileTap(FileItem file) {
     setState(() {
-      if (_selectedFiles.contains(file)) {
-        _selectedFiles.remove(file);
-      } else {
-        _selectedFiles.add(file);
-      }
+      _selectedFiles = [file];
       _selectedFile = file;
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedFiles.clear();
+      _selectedFile = null;
     });
   }
 
@@ -1037,12 +1420,23 @@ if __name__ == '__main__':
       final isImage = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(extension);
       final isVideo = ['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(extension);
       final isAudio = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.opus'].contains(extension);
+      final isText = ['.text', '.md', '.c', '.cc', '.dart', '.py', '.sh', '.txt', '.rtf', '.html', '.js', '.ts', '.json', '.yaml', '.yml'].contains(extension);
       final isDeb = extension == '.deb';
+      final isDesktop = extension == '.desktop';
 
       if (isDeb) {
         showDialog(
           context: context,
           builder: (context) => DebInstallerDialog(debFilePath: file.path),
+        );
+      } else if (isDesktop) {
+        _launchDesktopFile(file);
+      } else if (isText) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TextEditorPage(filePath: file.path),
+          ),
         );
       } else if (isImage || isVideo || isAudio) {
         Navigator.push(
@@ -1166,6 +1560,174 @@ if __name__ == '__main__':
     if (_selectedFile != null) {
       _showFileDetails(_selectedFile!);
     }
+  }
+
+  Widget _buildSelectionRectangle() {
+    if (_selectionStart == null || _selectionEnd == null) {
+      return const SizedBox.shrink();
+    }
+
+    final left = _selectionStart!.dx < _selectionEnd!.dx ? _selectionStart!.dx : _selectionEnd!.dx;
+    final top = _selectionStart!.dy < _selectionEnd!.dy ? _selectionStart!.dy : _selectionEnd!.dy;
+    final right = _selectionStart!.dx > _selectionEnd!.dx ? _selectionStart!.dx : _selectionEnd!.dx;
+    final bottom = _selectionStart!.dy > _selectionEnd!.dy ? _selectionStart!.dy : _selectionEnd!.dy;
+
+    return Positioned(
+      left: left,
+      top: top,
+      child: Container(
+        width: right - left,
+        height: bottom - top,
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(51, 0, 122, 255), // 0xFF007AFF with 20% opacity
+          border: Border.all(
+            color: const Color(0xFF007AFF),
+            width: 1.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _updateSelectionFromRectangle(FileManagerLoaded state) {
+    if (_selectionStart == null || _selectionEnd == null) {
+      return;
+    }
+
+    final selectionRect = Rect.fromPoints(_selectionStart!, _selectionEnd!);
+    final selectedFiles = <FileItem>[];
+
+    // Calculate grid layout parameters
+    final crossAxisCount = 4;
+    final padding = 16.0;
+    final crossAxisSpacing = 16.0;
+    final mainAxisSpacing = 16.0;
+    final childAspectRatio = 1.2;
+    
+    // Get available width (accounting for sidebar if needed)
+    final screenWidth = MediaQuery.of(context).size.width;
+    final availableWidth = screenWidth - 200; // Subtract sidebar width
+    
+    // Calculate item dimensions
+    final itemWidth = (availableWidth - padding * 2 - crossAxisSpacing * (crossAxisCount - 1)) / crossAxisCount;
+    final itemHeight = itemWidth * childAspectRatio;
+    
+    // Get the GestureDetector's RenderBox for coordinate conversion
+    final RenderBox? gestureBox = context.findRenderObject() as RenderBox?;
+    if (gestureBox == null) return;
+    
+    for (int index = 0; index < state.filteredFiles.length; index++) {
+      final file = state.filteredFiles[index];
+      final key = _fileItemKeys[file];
+      
+      Rect? itemRect;
+      
+      // Try to get actual position from render box
+      if (key?.currentContext != null) {
+        final RenderBox? renderBox = key!.currentContext!.findRenderObject() as RenderBox?;
+        if (renderBox != null) {
+          try {
+            final globalPosition = renderBox.localToGlobal(Offset.zero);
+            final localPosition = gestureBox.globalToLocal(globalPosition);
+            final size = renderBox.size;
+            
+            itemRect = Rect.fromLTWH(
+              localPosition.dx,
+              localPosition.dy,
+              size.width,
+              size.height,
+            );
+          } catch (e) {
+            // Fall through to calculated position
+          }
+        }
+      }
+      
+      // Fallback: calculate position based on grid layout
+      if (itemRect == null) {
+        final row = index ~/ crossAxisCount;
+        final col = index % crossAxisCount;
+        
+        final itemLeft = padding + col * (itemWidth + crossAxisSpacing);
+        final itemTop = padding + row * (itemHeight + mainAxisSpacing) - _scrollController.offset;
+        
+        itemRect = Rect.fromLTWH(
+          itemLeft,
+          itemTop,
+          itemWidth,
+          itemHeight,
+        );
+      }
+      
+      // Check if selection rectangle intersects with item
+      if (selectionRect.overlaps(itemRect) || 
+          selectionRect.contains(itemRect.center) ||
+          itemRect.overlaps(selectionRect)) {
+        selectedFiles.add(file);
+      }
+    }
+
+    setState(() {
+      _selectedFiles = selectedFiles;
+      if (selectedFiles.isNotEmpty) {
+        _selectedFile = selectedFiles.first;
+      }
+    });
+  }
+}
+
+/// Widget that loads a folder icon with fallback to default
+class _FolderIconWidget extends StatefulWidget {
+  final String iconPath;
+  final String fallbackPath;
+
+  const _FolderIconWidget({
+    required this.iconPath,
+    required this.fallbackPath,
+  });
+
+  @override
+  State<_FolderIconWidget> createState() => _FolderIconWidgetState();
+}
+
+class _FolderIconWidgetState extends State<_FolderIconWidget> {
+  String? _currentPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentPath = widget.fallbackPath;
+    _checkAssetExists();
+  }
+
+  Future<void> _checkAssetExists() async {
+    try {
+      // Try to load the asset to see if it exists
+      await DefaultAssetBundle.of(context).load(widget.iconPath);
+      if (mounted) {
+        setState(() {
+          _currentPath = widget.iconPath;
+        });
+      }
+    } catch (e) {
+      // Asset doesn't exist, use fallback
+      if (mounted) {
+        setState(() {
+          _currentPath = widget.fallbackPath;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SvgPicture.asset(
+      _currentPath ?? widget.fallbackPath,
+      width: 64,
+      height: 64,
+      fit: BoxFit.contain,
+      semanticsLabel: 'Folder icon',
+    );
   }
 }
 

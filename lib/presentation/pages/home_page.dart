@@ -251,7 +251,7 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
       icon: Icon(
         icon, 
         size: 18,
-        color: isSelected ? const Color(0xFF007AFF) : Colors.white70,
+        color: isSelected ? const Color.fromARGB(255, 0, 255, 170) : Colors.white70,
       ),
       tooltip: tooltip,
       onPressed: onPressed,

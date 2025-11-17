@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:mime/mime.dart';
+import 'package:path/path.dart' as p;
+import 'video_player_widget.dart';
 
 class MediaViewer extends StatelessWidget {
   final String filePath;
@@ -51,138 +53,59 @@ class ImageViewer extends StatelessWidget {
   }
 }
 
-class VideoViewer extends StatefulWidget {
+class VideoViewer extends StatelessWidget {
   final String filePath;
 
   const VideoViewer({super.key, required this.filePath});
 
   @override
-  State<VideoViewer> createState() => _VideoViewerState();
-}
-
-class _VideoViewerState extends State<VideoViewer> {
-  Process? _process;
-
-  @override
-  void initState() {
-    super.initState();
-    _playVideo();
-  }
-
-  Future<void> _playVideo() async {
-    try {
-      _process = await Process.start('mpv', [widget.filePath]);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error playing video: $e')),
-        );
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // ignore: deprecated_member_use
-    return WillPopScope(
-      onWillPop: () async {
-        _process?.kill();
-        return true;
-      },
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
-          // ignore: deprecated_member_use
-          backgroundColor: Colors.black.withOpacity(0.7),
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () {
-              _process?.kill();
-              Navigator.pop(context);
-            },
-          ),
+    final videoName = p.basename(filePath);
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        // ignore: deprecated_member_use
+        backgroundColor: Colors.black.withOpacity(0.7),
+        title: Text(videoName),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
         ),
-        body: const Center(
-          child: Text(
-            'Video is playing in MPV...',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
+      ),
+      body: VideoPlayerWidget(
+        videoPath: filePath,
+        videoName: videoName,
       ),
     );
   }
-
-  @override
-  void dispose() {
-    _process?.kill();
-    super.dispose();
-  }
 }
 
-class AudioViewer extends StatefulWidget {
+class AudioViewer extends StatelessWidget {
   final String filePath;
 
   const AudioViewer({super.key, required this.filePath});
 
   @override
-  State<AudioViewer> createState() => _AudioViewerState();
-}
-
-class _AudioViewerState extends State<AudioViewer> {
-  Process? _process;
-
-  @override
-  void initState() {
-    super.initState();
-    _playAudio();
-  }
-
-  Future<void> _playAudio() async {
-    try {
-      _process = await Process.start('mpv', [widget.filePath]);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error playing audio: $e')),
-        );
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // ignore: deprecated_member_use
-    return WillPopScope(
-      onWillPop: () async {
-        _process?.kill();
-        return true;
-      },
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
-          // ignore: deprecated_member_use
-          backgroundColor: Colors.black.withOpacity(0.7),
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () {
-              _process?.kill();
-              Navigator.pop(context);
-            },
-          ),
-        ),
-        body: const Center(
-          child: Text(
-            'Audio is playing in MPV...',
-            style: TextStyle(color: Colors.white),
-          ),
+    final audioName = p.basename(filePath);
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        // ignore: deprecated_member_use
+        backgroundColor: Colors.black.withOpacity(0.7),
+        title: Text(audioName),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
+      body: VideoPlayerWidget(
+        
+        videoPath: filePath,
+        videoName: audioName,
+      ),
     );
-  }
-
-  @override
-  void dispose() {
-    _process?.kill();
-    super.dispose();
   }
 }
