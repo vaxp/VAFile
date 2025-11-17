@@ -2,6 +2,167 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 
+/// A very small, local syntax-highlighting controller. It subclasses
+/// [TextEditingController] and overrides [buildTextSpan] to return a
+/// colored [TextSpan] tree. This keeps the feature dependency-free and
+/// lightweight.
+class SyntaxHighlightingController extends TextEditingController {
+  final TextStyle baseStyle;
+
+  SyntaxHighlightingController({String? text, TextStyle? baseStyle})
+      : baseStyle = baseStyle ?? const TextStyle(color: Colors.white70, fontSize: 14, fontFamily: 'Courier New'),
+        super(text: text ?? '');
+
+  @override
+  TextSpan buildTextSpan({required BuildContext context, TextStyle? style, bool withComposing = false}) {
+    final defaultStyle = baseStyle.merge(style);
+    final source = text;
+
+    if (source.isEmpty) return TextSpan(style: defaultStyle, text: '');
+
+    // Token styles
+    final commentStyle = defaultStyle.copyWith(color: Colors.green[400]);
+    final stringStyle = defaultStyle.copyWith(color: Colors.orange[300]);
+    final numberStyle = defaultStyle.copyWith(color: Colors.purple[300]);
+    final keywordStyle = defaultStyle.copyWith(color: Colors.blue[300], fontWeight: FontWeight.bold);
+    final classStyle = defaultStyle.copyWith(color: Colors.teal[300], fontWeight: FontWeight.w600);
+    final functionStyle = defaultStyle.copyWith(color: Colors.indigo[200]);
+    final bracketStyle = defaultStyle.copyWith(color: Colors.yellow[300]);
+
+    // Priority-ordered token matchers. Higher priority first to avoid being overridden.
+    final List<_PatternStyle> matchers = [
+      // Multi-line comments
+      _PatternStyle(RegExp(r'/\*[\s\S]*?\*/'), commentStyle),
+      // Single-line comments
+      _PatternStyle(RegExp(r'//.*'), commentStyle),
+      // Double-quoted strings
+      _PatternStyle(RegExp(r'"(?:\\.|[^"\\])*"', dotAll: true), stringStyle),
+      // Single-quoted strings
+      _PatternStyle(RegExp(r"'(?:\\.|[^'\\])*'", dotAll: true), stringStyle),
+      // Class declarations: capture the class name
+      _PatternStyle(RegExp(r'\bclass\s+([A-Z][A-Za-z0-9_]*)'), classStyle, group: 1),
+      // Function definitions or calls: identifier followed by '('
+      _PatternStyle(RegExp(r'\b([a-zA-Z_][A-Za-z0-9_]*)\s*(?=\()'), functionStyle, group: 1),
+      // Keywords
+      _PatternStyle(RegExp(r'\b(class|final|var|void|int|double|String|if|else|for|while|return|import|as|async|await|new|const|true|false|static|late|final)\b'), keywordStyle),
+      // Numbers
+      _PatternStyle(RegExp(r'\b\d+(?:\.\d+)?\b'), numberStyle),
+      // Brackets
+      _PatternStyle(RegExp(r'[\[\]\{\}\(\)]'), bracketStyle),
+    ];
+
+    // Collect non-overlapping tokens
+    final tokens = <_Token>[];
+
+    for (final m in matchers) {
+        for (final match in m.pattern.allMatches(source)) {
+          int startIndex;
+          int endIndex;
+          if (m.groupIndex != null && m.groupIndex! > 0) {
+            final whole = match.group(0);
+            final sub = match.group(m.groupIndex!);
+            if (whole == null || sub == null) continue;
+            // Find the subgroup occurrence inside the whole match and compute absolute indices.
+            final offsetInWhole = whole.indexOf(sub);
+            if (offsetInWhole < 0) continue;
+            startIndex = match.start + offsetInWhole;
+            endIndex = startIndex + sub.length;
+          } else {
+            startIndex = match.start;
+            endIndex = match.end;
+          }
+          if (startIndex < 0 || endIndex <= startIndex) continue;
+          tokens.add(_Token(startIndex, endIndex, m.style));
+        }
+    }
+
+    // Sort tokens and remove overlaps (keep earlier tokens' priority)
+    tokens.sort((a, b) => a.start.compareTo(b.start));
+    final nonOverlapping = <_Token>[];
+    int cursor = 0;
+    for (final t in tokens) {
+      if (t.end <= cursor) continue; // fully covered
+      if (t.start < cursor) {
+        // trim
+        nonOverlapping.add(_Token(cursor, t.end, t.style));
+        cursor = t.end;
+      } else {
+        nonOverlapping.add(t);
+        cursor = t.end;
+      }
+    }
+
+    // Build spans
+    final children = <TextSpan>[];
+    int last = 0;
+    for (final t in nonOverlapping) {
+      if (t.start > last) {
+        children.add(TextSpan(text: source.substring(last, t.start), style: defaultStyle));
+      }
+      children.add(TextSpan(text: source.substring(t.start, t.end), style: t.style));
+      last = t.end;
+    }
+    if (last < source.length) children.add(TextSpan(text: source.substring(last), style: defaultStyle));
+
+    return TextSpan(style: defaultStyle, children: children);
+  }
+}
+
+class _PatternStyle {
+  final RegExp pattern;
+  final TextStyle style;
+  final int? groupIndex;
+  _PatternStyle(this.pattern, this.style, {int? group}) : groupIndex = group;
+}
+
+class _Token {
+  final int start;
+  final int end;
+  final TextStyle style;
+  _Token(this.start, this.end, this.style);
+}
+
+/// Simple undo/redo manager for text editing
+class UndoRedoManager {
+  final List<String> _history = [];
+  int _currentIndex = -1;
+
+  /// Initialize with the current text
+  void init(String text) {
+    _history.clear();
+    _currentIndex = -1;
+    push(text);
+  }
+
+  /// Push a new state onto the undo stack
+  void push(String text) {
+    // Remove any redo history when new change is made
+    if (_currentIndex < _history.length - 1) {
+      _history.removeRange(_currentIndex + 1, _history.length);
+    }
+    _history.add(text);
+    _currentIndex = _history.length - 1;
+  }
+
+  /// Undo to the previous state. Returns the previous text or null if at the beginning.
+  String? undo() {
+    if (_currentIndex > 0) {
+      _currentIndex--;
+      return _history[_currentIndex];
+    }
+    return null;
+  }
+
+  /// Redo to the next state. Returns the next text or null if at the end.
+  String? redo() {
+    if (_currentIndex < _history.length - 1) {
+      _currentIndex++;
+      return _history[_currentIndex];
+    }
+    return null;
+  }
+}
+
 class TextEditorPage extends StatefulWidget {
   final String filePath;
 
@@ -15,16 +176,18 @@ class TextEditorPage extends StatefulWidget {
 }
 
 class _TextEditorPageState extends State<TextEditorPage> {
-  late TextEditingController _controller;
+  late SyntaxHighlightingController _controller;
   late File _file;
   bool _isModified = false;
   bool _isSaving = false;
+  late UndoRedoManager _undoRedoManager;
 
   @override
   void initState() {
     super.initState();
     _file = File(widget.filePath);
-    _controller = TextEditingController();
+    _controller = SyntaxHighlightingController();
+    _undoRedoManager = UndoRedoManager();
     _loadFile();
     _controller.addListener(_onContentChanged);
   }
@@ -34,6 +197,7 @@ class _TextEditorPageState extends State<TextEditorPage> {
       final content = await _file.readAsString();
       setState(() {
         _controller.text = content;
+        _undoRedoManager.init(content);
         _isModified = false;
       });
     } catch (e) {
@@ -49,6 +213,32 @@ class _TextEditorPageState extends State<TextEditorPage> {
     setState(() {
       _isModified = true;
     });
+    // Push to undo stack on each change
+    _undoRedoManager.push(_controller.text);
+  }
+
+  void _handleUndo() {
+    final prevText = _undoRedoManager.undo();
+    if (prevText != null) {
+      _controller.removeListener(_onContentChanged);
+      _controller.text = prevText;
+      _controller.addListener(_onContentChanged);
+      setState(() {
+        _isModified = true;
+      });
+    }
+  }
+
+  void _handleRedo() {
+    final nextText = _undoRedoManager.redo();
+    if (nextText != null) {
+      _controller.removeListener(_onContentChanged);
+      _controller.text = nextText;
+      _controller.addListener(_onContentChanged);
+      setState(() {
+        _isModified = true;
+      });
+    }
   }
 
   Future<void> _saveFile() async {
@@ -161,81 +351,139 @@ class _TextEditorPageState extends State<TextEditorPage> {
             ),
           ],
         ),
-        body: Column(
-          children: [
-            Container(
-              decoration: const BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: Color(0xFF404040),
-                    width: 1,
+        body: Focus(
+          onKey: (node, event) {
+            // Ctrl+S to save
+            if (event.isControlPressed && event.logicalKey.keyLabel == 's') {
+              if (_isModified) _saveFile();
+              return KeyEventResult.handled;
+            }
+            // Ctrl+Z to undo
+            if (event.isControlPressed && event.logicalKey.keyLabel == 'z') {
+              _handleUndo();
+              return KeyEventResult.handled;
+            }
+            // Ctrl+Y to redo
+            if (event.isControlPressed && event.logicalKey.keyLabel == 'y') {
+              _handleRedo();
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Column(
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Color(0xFF404040),
+                      width: 1,
+                    ),
                   ),
                 ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Text(
-                    'Line ${_getLineNumber()}, Column ${_getColumnNumber()}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white54,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    _getFileSize(),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white54,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                  controller: _controller,
-                  maxLines: null,
-                  expands: true,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                    fontFamily: 'Courier New',
-                  ),
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderSide: const BorderSide(
-                        color: Color(0xFF404040),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Text(
+                      'Line ${_getLineNumber()}, Column ${_getColumnNumber()}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white54,
                       ),
-                      borderRadius: BorderRadius.circular(8),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(
-                        color: Color(0xFF404040),
+                    const Spacer(),
+                    Text(
+                      _getFileSize(),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white54,
                       ),
-                      borderRadius: BorderRadius.circular(8),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(
-                        color: Color(0xFF007AFF),
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: const Color.fromARGB(188, 0, 0, 0),
-                    hintText: 'Start typing...',
-                    hintStyle: const TextStyle(
-                      color: Colors.white24,
-                    ),
-                    contentPadding: const EdgeInsets.all(12),
-                  ),
+                  ],
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: Row(
+                  children: [
+                    // Line number gutter
+                    Container(
+                      width: 50,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          right: BorderSide(
+                            color: Color(0xFF404040),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ListView.builder(
+                        itemCount: _getLineCount(),
+                        controller: ScrollController(),
+                        itemBuilder: (context, index) {
+                          return Container(
+                            height: 23.6,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white38,
+                                fontFamily: 'Courier New',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    // Text editor
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: TextField(
+                          controller: _controller,
+                          maxLines: null,
+                          expands: true,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            fontFamily: 'Courier New',
+                          ),
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderSide: const BorderSide(
+                                color: Color(0xFF404040),
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(
+                                color: Color(0xFF404040),
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(
+                                color: Color(0xFF007AFF),
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            filled: true,
+                            fillColor: const Color.fromARGB(188, 0, 0, 0),
+                            hintText: 'Start typing...',
+                            hintStyle: const TextStyle(
+                              color: Colors.white24,
+                            ),
+                            contentPadding: const EdgeInsets.all(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -271,6 +519,11 @@ class _TextEditorPageState extends State<TextEditorPage> {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  int _getLineCount() {
+    if (_controller.text.isEmpty) return 1;
+    return '\n'.allMatches(_controller.text).length + 1;
   }
 
   Future<bool> _showUnsavedChangesDialog() async {
