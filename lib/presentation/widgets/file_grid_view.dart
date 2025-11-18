@@ -975,6 +975,14 @@ if __name__ == '__main__':
                 height: 64,
                 fit: BoxFit.cover,
                 gaplessPlayback: true,
+                errorBuilder: (context, error, stackTrace) {
+                  // If image fails to load (e.g., empty or corrupted file), fallback to icon
+                  return Icon(
+                    iconData,
+                    size: 32,
+                    color: iconColor,
+                  );
+                },
               )
             : Icon(
                 key: ValueKey('icon-${file.name}'),

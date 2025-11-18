@@ -33,6 +33,50 @@ class ImageViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final file = File(filePath);
+    
+    // Check if file exists and is not empty
+    if (!file.existsSync()) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          // ignore: deprecated_member_use
+          backgroundColor: Colors.black.withOpacity(0.7),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(
+          child: Text(
+            'File not found',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
+    
+    final fileSize = file.lengthSync();
+    if (fileSize == 0) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          // ignore: deprecated_member_use
+          backgroundColor: Colors.black.withOpacity(0.7),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(
+          child: Text(
+            'Image file is empty and cannot be displayed',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
+    
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -44,10 +88,23 @@ class ImageViewer extends StatelessWidget {
         ),
       ),
       body: PhotoView(
-        imageProvider: FileImage(File(filePath)),
+        imageProvider: FileImage(file),
         minScale: PhotoViewComputedScale.contained,
         maxScale: PhotoViewComputedScale.covered * 2,
         backgroundDecoration: const BoxDecoration(color: Colors.black),
+        errorBuilder: (context, error, stackTrace) {
+          return const Center(
+            child: Text(
+              'Failed to load image',
+              style: TextStyle(color: Colors.white),
+            ),
+          );
+        },
+        loadingBuilder: (context, event) {
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          );
+        },
       ),
     );
   }
