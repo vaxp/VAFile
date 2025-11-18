@@ -382,7 +382,11 @@ static void handle_clipboard_method_call(FlMethodChannel* channel, FlMethodCall*
         return;
       }
       
-      // Clear any existing clipboard data
+      // Clear clipboard ownership first to ensure we can set new data
+      // This is important if the clipboard is still owned from a previous operation
+      gtk_clipboard_clear(clipboard);
+      
+      // Clear any existing clipboard data from our storage
       if (clipboard_uri_list) {
         g_string_free(clipboard_uri_list, TRUE);
         clipboard_uri_list = nullptr;
@@ -424,7 +428,7 @@ static void handle_clipboard_method_call(FlMethodChannel* channel, FlMethodCall*
                                                      nullptr);
       
       if (!success) {
-        g_warning("Failed to set clipboard data");
+        g_warning("Failed to set clipboard data - clipboard may be owned by another application");
         g_string_free(clipboard_uri_list, TRUE);
         clipboard_uri_list = nullptr;
         fl_method_call_respond_error(method_call, "CLIPBOARD_ERROR", "Failed to set clipboard data", nullptr, nullptr);
