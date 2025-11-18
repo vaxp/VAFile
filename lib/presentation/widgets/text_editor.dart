@@ -3,7 +3,271 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
 import 'package:path/path.dart' as p;
-import 'package:markdown_widget/widget/markdown.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_markdown/flutter_markdown.dart';
+
+/// AI Assistant Panel Widget
+class AiAssistantPanel extends StatefulWidget {
+  const AiAssistantPanel({super.key});
+
+  @override
+  State<AiAssistantPanel> createState() => _AiAssistantPanelState();
+}
+
+class _AiAssistantPanelState extends State<AiAssistantPanel> {
+  final TextEditingController _aiController = TextEditingController();
+  final ScrollController _aiScrollController = ScrollController();
+  
+  String _fullResponse = "";
+  String _displayedResponse = "";
+  
+  bool _isLoading = false;
+  bool _isTyping = false;
+  String _statusMessage = "Ready. Type your query...";
+  
+  Timer? _typewriterTimer;
+
+  bool _checkForArabic(String text) {
+    if (text.isEmpty) return false;
+    return RegExp(r'[\u0600-\u06FF]').hasMatch(text);
+  }
+
+  Future<void> fetchAiResponse(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return;
+
+    _typewriterTimer?.cancel();
+    
+    setState(() {
+      _isLoading = true;
+      _isTyping = false;
+      _fullResponse = "";
+      _displayedResponse = "";
+      _statusMessage = "AI is analyzing...";
+    });
+
+    try {
+      final url = Uri.parse('https://text.pollinations.ai/${Uri.encodeComponent(cleanQuery)}');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        _fullResponse = response.body;
+        _startTypewriterEffect();
+      } else {
+        setState(() {
+          _statusMessage = "Error: ${response.statusCode}";
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _statusMessage = "Network Error.";
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _startTypewriterEffect() {
+    setState(() {
+      _isLoading = false;
+      _isTyping = true;
+      _statusMessage = "Typing...";
+    });
+
+    int currentIndex = 0;
+    const speed = Duration(milliseconds: 10);
+
+    _typewriterTimer = Timer.periodic(speed, (timer) {
+      if (currentIndex < _fullResponse.length) {
+        setState(() {
+          _displayedResponse += _fullResponse[currentIndex];
+        });
+        currentIndex++;
+        
+        if (_aiScrollController.hasClients) {
+          _aiScrollController.jumpTo(_aiScrollController.position.maxScrollExtent);
+        }
+      } else {
+        timer.cancel();
+        setState(() {
+          _isTyping = false;
+          _statusMessage = "Done.";
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _typewriterTimer?.cancel();
+    _aiController.dispose();
+    _aiScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isRtl = _checkForArabic(_displayedResponse);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 350,
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(82, 0, 0, 0),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent.withOpacity(0.1),
+                border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1))),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.smart_toy_outlined, color: Colors.blueAccent, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text("Admiral AI", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: const Text("BETA", style: TextStyle(color: Colors.blueAccent, fontSize: 8, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Input field
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF252525).withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: TextField(
+                  controller: _aiController,
+                  style: const TextStyle(fontSize: 13, color: Colors.white, fontFamily: 'Monospace'),
+                  cursorColor: Colors.blueAccent,
+                  maxLines: 3,
+                  minLines: 1,
+                  decoration: const InputDecoration(
+                    hintText: "Ask anything...",
+                    hintStyle: TextStyle(color: Colors.white24, fontSize: 12),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  onSubmitted: (val) {
+                    if (val.trim().isNotEmpty) {
+                      fetchAiResponse(val);
+                    }
+                  },
+                ),
+              ),
+            ),
+
+            // Results area
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                ),
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blueAccent),
+                      )
+                    : _displayedResponse.isEmpty && !_isTyping
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.auto_awesome, size: 28, color: Colors.grey.shade800),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _statusMessage,
+                                  style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          )
+                        : SingleChildScrollView(
+                            controller: _aiScrollController,
+                            child: Directionality(
+                              textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+                              child: MarkdownBody(
+                                data: _displayedResponse,
+                                selectable: true,
+                                styleSheet: MarkdownStyleSheet(
+                                  p: TextStyle(
+                                    color: const Color(0xFFE0E0E0),
+                                    fontSize: 12,
+                                    height: 1.5,
+                                    fontFamily: isRtl ? 'Sans' : 'Monospace',
+                                  ),
+                                  h1: TextStyle(color: Colors.blueAccent, fontSize: 16, fontWeight: FontWeight.bold),
+                                  h2: TextStyle(color: Colors.blueAccent, fontSize: 15, fontWeight: FontWeight.bold),
+                                  code: const TextStyle(
+                                    color: Color(0xFFff7b72),
+                                    backgroundColor: Color(0xFF2d333b),
+                                    fontFamily: 'Monospace',
+                                    fontSize: 11,
+                                  ),
+                                  codeblockDecoration: BoxDecoration(
+                                    color: const Color(0xFF22272e),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.white10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+              ),
+            ),
+            
+            // Footer with send button
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    if (_aiController.text.trim().isNotEmpty) {
+                      fetchAiResponse(_aiController.text);
+                      _aiController.clear();
+                    }
+                  },
+                  icon: const Icon(Icons.send, size: 16),
+                  label: const Text('Send', style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// A very small, local syntax-highlighting controller. It subclasses
 /// [TextEditingController] and overrides [buildTextSpan] to return a
@@ -188,6 +452,7 @@ class _TextEditorPageState extends State<TextEditorPage> {
   late ScrollController _editorLineNumbersScrollController;
   late ScrollController _previewScrollController;
   bool _isSyncingScroll = false;
+  bool _showAiPanel = false;
 
   @override
   void initState() {
@@ -368,6 +633,15 @@ class _TextEditorPageState extends State<TextEditorPage> {
                 onPressed: _runFile,
               ),
             IconButton(
+              icon: const Icon(Icons.smart_toy_outlined, color: Colors.blueAccent),
+              tooltip: 'AI Assistant',
+              onPressed: () {
+                setState(() {
+                  _showAiPanel = !_showAiPanel;
+                });
+              },
+            ),
+            IconButton(
               icon: Icon(
                 _isSaving ? Icons.hourglass_bottom : Icons.save,
                 color: _isSaving ? Colors.white54 : Colors.white70,
@@ -391,7 +665,18 @@ class _TextEditorPageState extends State<TextEditorPage> {
             ),
           ],
         ),
-        body: isMarkdown ? _buildMarkdownEditor() : _buildRegularEditor(),
+        body: Row(
+          children: [
+            Expanded(
+              child: isMarkdown ? _buildMarkdownEditor() : _buildRegularEditor(),
+            ),
+            if (_showAiPanel)
+              const SizedBox(
+                width: 380,
+                child: AiAssistantPanel(),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -746,9 +1031,9 @@ class _TextEditorPageState extends State<TextEditorPage> {
                               fontFamily: 'Courier New',
                               height: 1.7,
                             ),
-                            child: MarkdownWidget(
+                            child: MarkdownBody(
                               data: _controller.text,
-                              shrinkWrap: true,
+                              selectable: true,
                             ),
                           ),
                         ),
