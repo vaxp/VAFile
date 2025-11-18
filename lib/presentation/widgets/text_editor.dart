@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:path/path.dart' as p;
 import 'package:http/http.dart' as http;
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter/services.dart';
 
 /// AI Assistant Panel Widget
 class AiAssistantPanel extends StatefulWidget {
@@ -103,6 +104,232 @@ class _AiAssistantPanelState extends State<AiAssistantPanel> {
     _aiController.dispose();
     _aiScrollController.dispose();
     super.dispose();
+  }
+
+  /// Build markdown with interactive code block buttons
+  Widget _buildMarkdownWithCodeButtons(String markdown, bool isRtl) {
+    // Split markdown by code blocks
+    final regex = RegExp(r'```([^\n]*)\n([\s\S]*?)```', multiLine: true);
+    final matches = regex.allMatches(markdown);
+    
+    if (matches.isEmpty) {
+      // No code blocks, render as normal markdown
+      return MarkdownBody(
+        data: markdown,
+        selectable: true,
+        styleSheet: MarkdownStyleSheet(
+          p: TextStyle(
+            color: const Color(0xFFE0E0E0),
+            fontSize: 12,
+            height: 1.5,
+            fontFamily: isRtl ? 'Sans' : 'Monospace',
+          ),
+          h1: TextStyle(color: Colors.blueAccent, fontSize: 16, fontWeight: FontWeight.bold),
+          h2: TextStyle(color: Colors.blueAccent, fontSize: 15, fontWeight: FontWeight.bold),
+          code: const TextStyle(
+            color: Color(0xFFff7b72),
+            backgroundColor: Color(0xFF2d333b),
+            fontFamily: 'Monospace',
+            fontSize: 11,
+          ),
+          codeblockDecoration: BoxDecoration(
+            color: const Color(0xFF22272e),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.white10),
+          ),
+        ),
+      );
+    }
+
+    // Build list with code blocks and buttons
+    final widgets = <Widget>[];
+    int lastEnd = 0;
+
+    for (final match in matches) {
+      // Add text before code block
+      if (match.start > lastEnd) {
+        final beforeText = markdown.substring(lastEnd, match.start);
+        if (beforeText.trim().isNotEmpty) {
+          widgets.add(
+            MarkdownBody(
+              data: beforeText,
+              selectable: true,
+              styleSheet: MarkdownStyleSheet(
+                p: TextStyle(
+                  color: const Color(0xFFE0E0E0),
+                  fontSize: 12,
+                  height: 1.5,
+                  fontFamily: isRtl ? 'Sans' : 'Monospace',
+                ),
+              ),
+            ),
+          );
+        }
+      }
+
+      // Add code block with buttons
+      final language = match.group(1)?.trim() ?? '';
+      final code = match.group(2)?.trim() ?? '';
+      
+      widgets.add(const SizedBox(height: 8));
+      widgets.add(
+        _buildCodeBlockWithButtons(code, language),
+      );
+      widgets.add(const SizedBox(height: 8));
+
+      lastEnd = match.end;
+    }
+
+    // Add remaining text after last code block
+    if (lastEnd < markdown.length) {
+      final remainingText = markdown.substring(lastEnd);
+      if (remainingText.trim().isNotEmpty) {
+        widgets.add(
+          MarkdownBody(
+            data: remainingText,
+            selectable: true,
+            styleSheet: MarkdownStyleSheet(
+              p: TextStyle(
+                color: const Color(0xFFE0E0E0),
+                fontSize: 12,
+                height: 1.5,
+                fontFamily: isRtl ? 'Sans' : 'Monospace',
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
+  }
+
+  /// Build a code block with copy and insert buttons
+  Widget _buildCodeBlockWithButtons(String code, String language) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(131, 34, 39, 46),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Language label and buttons
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade900,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(5),
+                topRight: Radius.circular(5),
+              ),
+            ),
+            child: Row(
+              children: [
+                if (language.isNotEmpty)
+                  Text(
+                    language,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 10,
+                      fontFamily: 'Monospace',
+                    ),
+                  ),
+                const Spacer(),
+                // Copy button
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // Copy to clipboard
+                      final data = ClipboardData(text: code);
+                      Clipboard.setData(data);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Code copied to clipboard'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.copy, size: 14),
+                    label: const Text('Copy', style: TextStyle(fontSize: 11)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade700,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Insert button
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // Insert code into editor
+                      _insertCodeIntoEditor(code);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Code inserted into editor'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add, size: 14),
+                    label: const Text('Insert', style: TextStyle(fontSize: 11)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Code content
+          Container(
+            padding: const EdgeInsets.all(12),
+            child: SelectableText(
+              code,
+              style: const TextStyle(
+                color: Color(0xFFE0E0E0),
+                fontSize: 11,
+                fontFamily: 'Monospace',
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Insert code into the main editor
+  void _insertCodeIntoEditor(String code) {
+    // Access the TextEditorPage's controller through context
+    // We'll need to find the TextEditingController from the parent widget
+    // For now, we can use a simple approach with a callback
+    
+    // Try to find the SyntaxHighlightingController in the context
+    try {
+      // This will be handled through callback from parent TextEditorPage
+      if (mounted && context.mounted) {
+        // Show confirmation and insert
+        final currentTextEditorState = context.findAncestorStateOfType<_TextEditorPageState>();
+        if (currentTextEditorState != null) {
+          currentTextEditorState._insertCodeFromAi(code);
+        }
+      }
+    } catch (e) {
+      // Fallback: just copy to clipboard
+      final data = ClipboardData(text: code);
+      Clipboard.setData(data);
+    }
   }
 
   @override
@@ -210,31 +437,7 @@ class _AiAssistantPanelState extends State<AiAssistantPanel> {
                             controller: _aiScrollController,
                             child: Directionality(
                               textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
-                              child: MarkdownBody(
-                                data: _displayedResponse,
-                                selectable: true,
-                                styleSheet: MarkdownStyleSheet(
-                                  p: TextStyle(
-                                    color: const Color(0xFFE0E0E0),
-                                    fontSize: 12,
-                                    height: 1.5,
-                                    fontFamily: isRtl ? 'Sans' : 'Monospace',
-                                  ),
-                                  h1: TextStyle(color: Colors.blueAccent, fontSize: 16, fontWeight: FontWeight.bold),
-                                  h2: TextStyle(color: Colors.blueAccent, fontSize: 15, fontWeight: FontWeight.bold),
-                                  code: const TextStyle(
-                                    color: Color(0xFFff7b72),
-                                    backgroundColor: Color(0xFF2d333b),
-                                    fontFamily: 'Monospace',
-                                    fontSize: 11,
-                                  ),
-                                  codeblockDecoration: BoxDecoration(
-                                    color: const Color(0xFF22272e),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: Colors.white10),
-                                  ),
-                                ),
-                              ),
+                              child: _buildMarkdownWithCodeButtons(_displayedResponse, isRtl),
                             ),
                           ),
               ),
@@ -1217,6 +1420,29 @@ class _TextEditorPageState extends State<TextEditorPage> {
         ),
       ),
     );
+  }
+
+  /// Insert code from AI assistant into the editor
+  void _insertCodeFromAi(String code) {
+    final currentText = _controller.text;
+    final cursorPosition = _controller.selection.start;
+    
+    // Insert code at cursor position
+    final newText = currentText.replaceRange(
+      cursorPosition,
+      cursorPosition,
+      code + '\n',
+    );
+    
+    _controller.text = newText;
+    
+    // Move cursor after inserted code
+    _controller.selection = TextSelection.fromPosition(
+      TextPosition(offset: cursorPosition + code.length + 1),
+    );
+    
+    // Mark as modified
+    _onContentChanged();
   }
 
   Future<bool> _showUnsavedChangesDialog() async {
