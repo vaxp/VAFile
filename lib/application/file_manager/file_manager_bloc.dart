@@ -15,6 +15,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
   List<FileItem> filteredFiles = [];
   String searchQuery = '';
   bool showHiddenFiles = false;
+  List<DeviceInfo> connectedDevices = [];
 
   // navigation history stacks
   final List<String> _backStack = [];
@@ -31,6 +32,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
       try {
         files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
         filteredFiles = List<FileItem>.from(files);
+        connectedDevices = await repository.detectConnectedDevices();
         emit(FileManagerLoaded(
           currentPath: currentPath,
           files: files,
@@ -43,7 +45,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           canGoBack: _backStack.isNotEmpty,
           canGoForward: _forwardStack.isNotEmpty,
           sortBy: 'name',
-          connectedDevices: const [],
+          connectedDevices: connectedDevices,
         ));
       } catch (e) {
         emit(FileManagerError(e.toString()));
@@ -66,6 +68,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         currentPath = event.path;
         files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
         filteredFiles = List<FileItem>.from(files);
+        connectedDevices = await repository.detectConnectedDevices();
         emit(FileManagerLoaded(
           currentPath: currentPath,
           files: files,
@@ -78,7 +81,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           canGoBack: _backStack.isNotEmpty,
           canGoForward: _forwardStack.isNotEmpty,
           sortBy: 'name',
-          connectedDevices: const [],
+          connectedDevices: connectedDevices,
         ));
       } catch (e) {
         emit(FileManagerError(e.toString()));
@@ -95,6 +98,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         currentPath = target;
         files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
         filteredFiles = List<FileItem>.from(files);
+        connectedDevices = await repository.detectConnectedDevices();
         emit(FileManagerLoaded(
           currentPath: currentPath,
           files: files,
@@ -107,7 +111,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           canGoBack: _backStack.isNotEmpty,
           canGoForward: _forwardStack.isNotEmpty,
           sortBy: 'name',
-          connectedDevices: const [],
+          connectedDevices: connectedDevices,
         ));
       } catch (e) {
         emit(FileManagerError(e.toString()));
@@ -124,6 +128,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         currentPath = target;
         files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
         filteredFiles = List<FileItem>.from(files);
+        connectedDevices = await repository.detectConnectedDevices();
         emit(FileManagerLoaded(
           currentPath: currentPath,
           files: files,
@@ -136,7 +141,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           canGoBack: _backStack.isNotEmpty,
           canGoForward: _forwardStack.isNotEmpty,
           sortBy: 'name',
-          connectedDevices: const [],
+          connectedDevices: connectedDevices,
         ));
       } catch (e) {
         emit(FileManagerError(e.toString()));
@@ -160,7 +165,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         canGoBack: _backStack.isNotEmpty,
         canGoForward: _forwardStack.isNotEmpty,
         sortBy: 'name',
-        connectedDevices: const [],
+        connectedDevices: connectedDevices,
       ));
     });
 
@@ -171,6 +176,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           await repository.renameFile(event.file, event.newName);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
+          connectedDevices = await repository.detectConnectedDevices();
           emit(FileManagerLoaded(
             currentPath: currentPath,
             files: files,
@@ -183,7 +189,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             canGoBack: _backStack.isNotEmpty,
             canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
-            connectedDevices: currentState.connectedDevices,
+            connectedDevices: connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));
@@ -198,6 +204,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           await repository.deleteFile(event.file);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
+          connectedDevices = await repository.detectConnectedDevices();
           emit(FileManagerLoaded(
             currentPath: currentPath,
             files: files,
@@ -210,7 +217,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             canGoBack: _backStack.isNotEmpty,
             canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
-            connectedDevices: currentState.connectedDevices,
+            connectedDevices: connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));
@@ -225,6 +232,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           await repository.copyFile(event.file, event.destination);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
+          connectedDevices = await repository.detectConnectedDevices();
           emit(FileManagerLoaded(
             currentPath: currentPath,
             files: files,
@@ -237,7 +245,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             canGoBack: _backStack.isNotEmpty,
             canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
-            connectedDevices: currentState.connectedDevices,
+            connectedDevices: connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));
@@ -252,6 +260,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           await repository.moveFile(event.file, event.destination);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
+          connectedDevices = await repository.detectConnectedDevices();
           emit(FileManagerLoaded(
             currentPath: currentPath,
             files: files,
@@ -264,7 +273,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             canGoBack: _backStack.isNotEmpty,
             canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
-            connectedDevices: currentState.connectedDevices,
+            connectedDevices: connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));
@@ -279,6 +288,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           await repository.compressFiles(event.files.map((f) => f.path).toList(), event.destination);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
+          connectedDevices = await repository.detectConnectedDevices();
           emit(FileManagerLoaded(
             currentPath: currentPath,
             files: files,
@@ -291,7 +301,7 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
             canGoBack: _backStack.isNotEmpty,
             canGoForward: _forwardStack.isNotEmpty,
             sortBy: currentState.sortBy,
-            connectedDevices: currentState.connectedDevices,
+            connectedDevices: connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import '../domain/vaxp.dart';
 import '../domain/file_manager_repository.dart';
+import 'device_detection_service.dart';
 
 class FileManagerRepositoryImpl implements FileManagerRepository {
   @override
@@ -49,8 +50,11 @@ class FileManagerRepositoryImpl implements FileManagerRepository {
 
   @override
   Future<List<DeviceInfo>> detectConnectedDevices() async {
-    // Example implementation, can be expanded
-    return [];
+    try {
+      return await DeviceDetectionService.detectDevices();
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
