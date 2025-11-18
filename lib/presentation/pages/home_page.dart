@@ -6,6 +6,8 @@ import '../widgets/sidebar.dart';
 import '../widgets/file_grid_view.dart';
 import '../widgets/dialogs/new_folder_dialog.dart';
 import '../../infrastructure/clipboard_service.dart';
+import 'package:vafile/search/application/search_handler.dart';
+import 'package:vafile/search/application/search_cubit.dart';
 
 class FileManagerHomePage extends StatefulWidget {
   const FileManagerHomePage({super.key});
@@ -17,6 +19,7 @@ class FileManagerHomePage extends StatefulWidget {
 class _FileManagerHomePageState extends State<FileManagerHomePage> {
   final GlobalKey<FileGridViewState> _gridKey = GlobalKey<FileGridViewState>();
   FileItem? _focusedFile;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -25,6 +28,12 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<fm.FileManagerBloc>().add(fm.InitializeFileManager());
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -171,23 +180,48 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
     return Expanded(
       flex: 2,
       child: Container(
-        height: 24,
+        height: 28,
         margin: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: const Color.fromARGB(188, 0, 0, 0),
           borderRadius: BorderRadius.circular(12),
         ),
         child: TextField(
+          controller: _searchController,
           style: const TextStyle(fontSize: 12, color: Colors.white),
           decoration: const InputDecoration(
             hintText: 'Search',
             hintStyle: TextStyle(color: Colors.white54),
             prefixIcon: Icon(Icons.search, size: 16, color: Colors.white54),
             border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           ),
           onChanged: (value) {
+            // Update the dedicated SearchCubit (for advanced searches / suggestions)
+            try {
+              context.read<SearchCubit>().updateQuery(value);
+            } catch (_) {}
+
+            // Keep existing quick filter behavior for the file grid
             context.read<fm.FileManagerBloc>().add(fm.SearchFiles(value));
+          },
+          onSubmitted: (value) {
+            final handler = SearchHandler(
+              context: context,
+              onResetSearch: () {
+                _searchController.clear();
+                try {
+                  context.read<SearchCubit>().clearQuery();
+                } catch (_) {}
+              },
+            );
+
+            // If the handler recognizes the input as a special command (ai:, g:, vafile:, etc.) it will
+            // handle it and return true. Otherwise, fall back to the FileManager search behavior.
+            final handled = handler.handleSearch(value);
+            if (!handled) {
+              context.read<fm.FileManagerBloc>().add(fm.SearchFiles(value));
+            }
           },
         ),
       ),
