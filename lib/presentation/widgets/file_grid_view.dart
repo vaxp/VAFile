@@ -15,20 +15,20 @@ import '../../infrastructure/thumbnail_manager.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../application/file_manager/file_manager_bloc.dart';
 import '../../domain/vaxp.dart';
-import 'context_menu.dart';
-import 'dialogs/new_folder_dialog.dart';
 import 'media_viewer.dart';
 import 'deb_installer_dialog.dart';
 import 'text_editor.dart';
 
 class FileGridView extends StatefulWidget {
-  const FileGridView({super.key});
+  final ValueChanged<FileItem?>? onSelectionChanged;
+
+  const FileGridView({super.key, this.onSelectionChanged});
 
   @override
-  State<FileGridView> createState() => _FileGridViewState();
+  State<FileGridView> createState() => FileGridViewState();
 }
 
-class _FileGridViewState extends State<FileGridView> {
+class FileGridViewState extends State<FileGridView> {
   final ScrollController _scrollController = ScrollController();
   FileItem? _selectedFile;
   List<FileItem> _selectedFiles = [];
@@ -178,11 +178,9 @@ class _FileGridViewState extends State<FileGridView> {
           _selectionEnd = null;
         });
       },
-      onSecondaryTapDown: (details) {
+      onSecondaryTapDown: (_) {
         if (!_isDragging) {
-          final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-          final local = overlay.globalToLocal(details.globalPosition);
-          _showAdaptiveContextMenu(local);
+          _clearSelection();
         }
       },
       child: Stack(
@@ -220,11 +218,7 @@ class _FileGridViewState extends State<FileGridView> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _clearSelection(),
-      onSecondaryTapDown: (details) {
-        final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-        final local = overlay.globalToLocal(details.globalPosition);
-        _showAdaptiveContextMenu(local);
-      },
+      onSecondaryTapDown: (_) => _clearSelection(),
       child: ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(16),
@@ -243,11 +237,7 @@ class _FileGridViewState extends State<FileGridView> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _clearSelection(),
-      onSecondaryTapDown: (details) {
-        final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-        final local = overlay.globalToLocal(details.globalPosition);
-        _showAdaptiveContextMenu(local);
-      },
+      onSecondaryTapDown: (_) => _clearSelection(),
       child: ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(16),
@@ -267,11 +257,7 @@ class _FileGridViewState extends State<FileGridView> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _clearSelection(),
-      onSecondaryTapDown: (details) {
-        final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-        final local = overlay.globalToLocal(details.globalPosition);
-        _showAdaptiveContextMenu(local);
-      },
+      onSecondaryTapDown: (_) => _clearSelection(),
       child: GridView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(16),
@@ -611,11 +597,9 @@ if __name__ == '__main__':
             _openFile(file);
           }
         },
-        onSecondaryTapDown: (details) {
+        onSecondaryTapDown: (_) {
           if (!_isDragging && !isBeingDragged) {
-            final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-            final local = overlay.globalToLocal(details.globalPosition);
-            _showAdaptiveContextMenu(local, file: file);
+            _onFileTap(file);
           }
         },
         child: _buildFileItemContent(file, isSelected),
@@ -720,11 +704,9 @@ if __name__ == '__main__':
               _openFile(folder);
             }
           },
-          onSecondaryTapDown: (details) {
+          onSecondaryTapDown: (_) {
             if (!_isDragging && !isBeingDragged) {
-              final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-              final local = overlay.globalToLocal(details.globalPosition);
-              _showAdaptiveContextMenu(local, file: folder);
+              _onFileTap(folder);
             }
           },
           child: Container(
@@ -840,6 +822,7 @@ if __name__ == '__main__':
     setState(() {
       _selectedFiles.clear();
       _selectedFile = null;
+      widget.onSelectionChanged?.call(null);
     });
     
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1005,11 +988,7 @@ if __name__ == '__main__':
         behavior: HitTestBehavior.opaque,
         onTap: () => _onFileTap(file),
         onDoubleTap: () => _openFile(file),
-        onSecondaryTapDown: (details) {
-          final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-          final local = overlay.globalToLocal(details.globalPosition);
-          _showAdaptiveContextMenu(local, file: file);
-        },
+        onSecondaryTapDown: (_) => _onFileTap(file),
         child: ListTile(
           leading: _buildFileIcon(file),
           title: Text(
@@ -1042,11 +1021,7 @@ if __name__ == '__main__':
         behavior: HitTestBehavior.opaque,
         onTap: () => _onFileTap(file),
         onDoubleTap: () => _openFile(file),
-        onSecondaryTapDown: (details) {
-          final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-          final local = overlay.globalToLocal(details.globalPosition);
-          _showAdaptiveContextMenu(local, file: file);
-        },
+        onSecondaryTapDown: (_) => _onFileTap(file),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1090,11 +1065,7 @@ if __name__ == '__main__':
         behavior: HitTestBehavior.opaque,
         onTap: () => _onFileTap(file),
         onDoubleTap: () => _openFile(file),
-        onSecondaryTapDown: (details) {
-          final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-          final local = overlay.globalToLocal(details.globalPosition);
-          _showAdaptiveContextMenu(local, file: file);
-        },
+        onSecondaryTapDown: (_) => _onFileTap(file),
         child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -1144,6 +1115,7 @@ if __name__ == '__main__':
       _selectedFiles = [file];
       _selectedFile = file;
     });
+    widget.onSelectionChanged?.call(file);
   }
 
   void _clearSelection() {
@@ -1151,88 +1123,10 @@ if __name__ == '__main__':
       _selectedFiles.clear();
       _selectedFile = null;
     });
-  }
-
-  void _showAdaptiveContextMenu(Offset position, {FileItem? file}) {
-    // If file is provided, it's a file context menu
-    if (file != null) {
-      setState(() {
-        _selectedFile = file;
-        if (!_selectedFiles.contains(file)) {
-          _selectedFiles = [file];
-        }
-      });
-    }
-
-    showDialog(
-      context: context,
-      barrierColor: Colors.transparent,
-      builder: (context) => Stack(
-        children: [
-          Positioned(
-            left: position.dx,
-            top: position.dy,
-            child: CombinedContextMenu(
-              file: file,
-              onNewFolder: () {
-                Navigator.pop(context);
-                showDialog(
-                  context: context,
-                  builder: (context) => NewFolderDialog(
-                    onCreateFolder: (name) {
-                      final state = this.context.read<FileManagerBloc>().state;
-                      if (state is FileManagerLoaded) {
-                        context.read<FileManagerBloc>().add(CreateNewFolderEvent(name));
-                      }
-                    },
-                  ),
-                );
-              },
-              onNewDocument: () {
-                Navigator.pop(context);
-                _showNewDocumentDialog();
-              },
-              onOpenWith: file != null ? () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Open With not implemented')));
-              } : null,
-              onOpenInConsole: () {
-                Navigator.pop(context);
-                _openTerminalAtCurrentPath();
-              },
-              onPaste: ClipboardService.instance.hasItems ? () {
-                Navigator.pop(context);
-                _pasteFiles();
-              } : null,
-              onSelectAll: () {
-                Navigator.pop(context);
-                _selectAllFiles();
-              },
-              onProperties: () {
-                Navigator.pop(context);
-                _showPropertiesForSelectedFile();
-              },
-
-              // File callbacks (may be null when file == null)
-              onOpen: file != null ? () => _openFile(file) : null,
-              onCut: file != null ? () => _cutFile(file) : null,
-              onCopy: file != null ? () => _copyFile(file) : null,
-              onMoveTo: file != null ? () => _moveToFile(file) : null,
-              onCopyTo: file != null ? () => _copyToFile(file) : null,
-              onRename: file != null ? () => _renameFile(file) : null,
-              onCompress: file != null ? () => _compressFile(file) : null,
-              onDelete: file != null ? () => _deleteFile(file) : null,
-              onDetails: file != null ? () => _showFileDetails(file) : null,
-            ),
-          ),
-        ],
-      ),
-    );
+    widget.onSelectionChanged?.call(null);
   }
 
   void _renameFile(FileItem file) {
-    Navigator.pop(context); // Close context menu
-    
     showDialog(
       context: context,
       builder: (context) => _RenameDialog(
@@ -1244,50 +1138,7 @@ if __name__ == '__main__':
     );
   }
 
-  void _deleteFile(FileItem file) {
-    Navigator.pop(context); // Close context menu
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromARGB(188, 0, 0, 0),
-        title: const Text('Delete File', style: TextStyle(color: Colors.white)),
-        content: Text(
-          'Are you sure you want to delete "${file.name}"?',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<FileManagerBloc>().add(DeleteFile(file));
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _copyFile(FileItem file) {
-    Navigator.pop(context); // Close context menu
-    ClipboardService.instance.setCopy([file.path]);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied to clipboard')));
-  }
-
-  void _cutFile(FileItem file) {
-    Navigator.pop(context); // Close context menu
-    ClipboardService.instance.setCut([file.path]);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cut to clipboard')));
-  }
-
   void _showFileDetails(FileItem file) {
-    Navigator.pop(context); // Close context menu
-    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1454,104 +1305,18 @@ if __name__ == '__main__':
     }
   }
 
-  void _moveToFile(FileItem file) {
-    Navigator.pop(context); // Close context menu
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromARGB(188, 0, 0, 0),
-        title: const Text('Move to...', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Select destination folder',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Move to functionality not implemented yet')),
-              );
-            },
-            child: const Text('Move', style: TextStyle(color: Color(0xFF007AFF))),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _copyToFile(FileItem file) {
-    Navigator.pop(context); // Close context menu
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromARGB(188, 0, 0, 0),
-        title: const Text('Copy to...', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Select destination folder',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Copy to functionality not implemented yet')),
-              );
-            },
-            child: const Text('Copy', style: TextStyle(color: Color(0xFF007AFF))),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _compressFile(FileItem file) {
-    Navigator.pop(context); // Close context menu
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-        title: const Text('Compress...', style: TextStyle(color: Colors.white)),
-        content: Text(
-          'Compress "${file.name}"?',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Compress functionality not implemented yet')),
-              );
-            },
-            child: const Text('Compress', style: TextStyle(color: Color(0xFF007AFF))),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _selectAllFiles() {
     final state = context.read<FileManagerBloc>().state;
     if (state is FileManagerLoaded) {
       setState(() {
         _selectedFiles = List.from(state.filteredFiles);
+        if (_selectedFiles.isNotEmpty) {
+          _selectedFile = _selectedFiles.first;
+          widget.onSelectionChanged?.call(_selectedFile);
+        } else {
+          _selectedFile = null;
+          widget.onSelectionChanged?.call(null);
+        }
       });
     }
   }
@@ -1671,9 +1436,39 @@ if __name__ == '__main__':
       _selectedFiles = selectedFiles;
       if (selectedFiles.isNotEmpty) {
         _selectedFile = selectedFiles.first;
+        widget.onSelectionChanged?.call(_selectedFile);
+      } else {
+        _selectedFile = null;
+        widget.onSelectionChanged?.call(null);
       }
     });
   }
+
+  FileItem? get selectedFile => _selectedFile;
+
+  void renameSelection() => _renameSelectedFile();
+
+  void copySelection() => _copySelectedFiles();
+
+  void cutSelection() => _cutSelectedFiles();
+
+  void pasteFromClipboard() => _pasteFiles();
+
+  void showSelectionDetails() => _showPropertiesForSelectedFile();
+
+  void openSelection() {
+    if (_selectedFile != null) {
+      _openFile(_selectedFile!);
+    }
+  }
+
+  void deleteSelection() => _deleteSelectedFiles();
+
+  void selectAllEntries() => _selectAllFiles();
+
+  void openTerminalInCurrentDirectory() => _openTerminalAtCurrentPath();
+
+  void createNewDocumentFromToolbar() => _showNewDocumentDialog();
 }
 
 /// Widget that loads a folder icon with fallback to default

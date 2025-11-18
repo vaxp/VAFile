@@ -5,6 +5,7 @@ import '../../domain/vaxp.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/file_grid_view.dart';
 import '../widgets/dialogs/new_folder_dialog.dart';
+import '../../infrastructure/clipboard_service.dart';
 
 class FileManagerHomePage extends StatefulWidget {
   const FileManagerHomePage({super.key});
@@ -14,6 +15,9 @@ class FileManagerHomePage extends StatefulWidget {
 }
 
 class _FileManagerHomePageState extends State<FileManagerHomePage> {
+  final GlobalKey<FileGridViewState> _gridKey = GlobalKey<FileGridViewState>();
+  FileItem? _focusedFile;
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +33,7 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
       body: Column(
         children: [
           _buildTitleBar(context),
+          _buildActionBar(),
           _buildMainContent(),
           _buildStatusBar(),
         ],
@@ -203,13 +208,179 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
           Expanded(
             child: Container(
               color: const Color.fromARGB(188, 0, 0, 0),
-              child: const FileGridView(),
+              child: FileGridView(
+                key: _gridKey,
+                onSelectionChanged: _handleSelectionChanged,
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  void _handleSelectionChanged(FileItem? file) {
+    setState(() {
+      _focusedFile = file;
+    });
+  }
+
+  Widget _buildActionBar() {
+    final actions = _focusedFile == null ? _generalActionConfigs() : _fileActionConfigs(_focusedFile!);
+
+    return Container(
+      height: 56,
+      decoration: const BoxDecoration(
+        color: Color.fromARGB(188, 0, 0, 0),
+        border: Border(
+          bottom: BorderSide(color: Color(0xFF404040), width: 1),
+        ),
+      ),
+      alignment: Alignment.centerLeft,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: actions.map(_buildActionButton).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(_ActionButtonConfig config) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: TextButton.icon(
+        style: TextButton.styleFrom(
+          foregroundColor: config.onPressed == null ? Colors.white30 : Colors.white,
+          backgroundColor: config.onPressed == null ? Colors.white10 : Colors.white12,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        onPressed: config.onPressed,
+        icon: Icon(config.icon, size: 16),
+        label: Text(
+          config.label,
+          style: const TextStyle(fontSize: 12),
+        ),
+      ),
+    );
+  }
+
+  List<_ActionButtonConfig> _generalActionConfigs() {
+    final grid = _gridKey.currentState;
+    final hasClipboardItems = ClipboardService.instance.hasItems;
+
+    return [
+      _ActionButtonConfig(
+        label: 'New Folder',
+        icon: Icons.create_new_folder_outlined,
+        onPressed: () => _showNewFolderDialog(context),
+      ),
+      _ActionButtonConfig(
+        label: 'New Document',
+        icon: Icons.note_add_outlined,
+        onPressed: grid == null ? null : () => grid.createNewDocumentFromToolbar(),
+      ),
+      _ActionButtonConfig(
+        label: 'Open Terminal',
+        icon: Icons.terminal,
+        onPressed: grid == null ? null : () => grid.openTerminalInCurrentDirectory(),
+      ),
+      _ActionButtonConfig(
+        label: 'Paste',
+        icon: Icons.paste_outlined,
+        onPressed: hasClipboardItems && grid != null ? () => grid.pasteFromClipboard() : null,
+      ),
+      _ActionButtonConfig(
+        label: 'Select All',
+        icon: Icons.select_all,
+        onPressed: grid == null ? null : () => grid.selectAllEntries(),
+      ),
+    ];
+  }
+
+  List<_ActionButtonConfig> _fileActionConfigs(FileItem file) {
+    final grid = _gridKey.currentState;
+    final hasClipboardItems = ClipboardService.instance.hasItems;
+    final configs = <_ActionButtonConfig>[];
+
+    configs.add(_ActionButtonConfig(
+      label: _labelForPrimaryAction(file),
+      icon: _iconForPrimaryAction(file),
+      onPressed: grid == null ? null : () => grid.openSelection(),
+    ));
+
+    if (file.isDirectory) {
+      configs.add(_ActionButtonConfig(
+        label: 'Open Terminal Here',
+        icon: Icons.code,
+        onPressed: grid == null ? null : () => grid.openTerminalInCurrentDirectory(),
+      ));
+    }
+
+    configs.addAll([
+      _ActionButtonConfig(
+        label: 'Rename',
+        icon: Icons.drive_file_rename_outline,
+        onPressed: grid == null ? null : () => grid.renameSelection(),
+      ),
+      _ActionButtonConfig(
+        label: 'Copy',
+        icon: Icons.copy,
+        onPressed: grid == null ? null : () => grid.copySelection(),
+      ),
+      _ActionButtonConfig(
+        label: 'Cut',
+        icon: Icons.cut,
+        onPressed: grid == null ? null : () => grid.cutSelection(),
+      ),
+      _ActionButtonConfig(
+        label: 'Paste',
+        icon: Icons.paste_outlined,
+        onPressed: hasClipboardItems && grid != null ? () => grid.pasteFromClipboard() : null,
+      ),
+      _ActionButtonConfig(
+        label: 'Details',
+        icon: Icons.info_outline,
+        onPressed: grid == null ? null : () => grid.showSelectionDetails(),
+      ),
+    ]);
+
+    return configs;
+  }
+
+  String _labelForPrimaryAction(FileItem file) {
+    if (file.isDirectory) return 'Open Folder';
+    final ext = file.extension.toLowerCase();
+    if (_debExtensions.contains(ext)) return 'Install Package';
+    if (_desktopExtensions.contains(ext)) return 'Launch App';
+    if (_textExtensions.contains(ext)) return 'Edit Document';
+    if (_mediaExtensions.contains(ext)) return 'Preview';
+    return 'Open';
+  }
+
+  IconData _iconForPrimaryAction(FileItem file) {
+    if (file.isDirectory) return Icons.folder_open;
+    final ext = file.extension.toLowerCase();
+    if (_debExtensions.contains(ext)) return Icons.install_desktop;
+    if (_desktopExtensions.contains(ext)) return Icons.rocket_launch;
+    if (_textExtensions.contains(ext)) return Icons.edit_note;
+    if (_mediaExtensions.contains(ext)) return Icons.slideshow;
+    return Icons.open_in_new;
+  }
+
+  static const Set<String> _textExtensions = {
+    '.txt', '.text', '.md', '.rtf', '.c', '.cc', '.dart', '.py', '.sh', '.html', '.js', '.ts', '.json', '.yaml', '.yml'
+  };
+
+  static const Set<String> _mediaExtensions = {
+    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.webp',
+    '.mp4', '.avi', '.mov', '.mkv', '.webm',
+    '.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.opus'
+  };
+
+  static const Set<String> _debExtensions = {'.deb'};
+  static const Set<String> _desktopExtensions = {'.desktop'};
 
   Widget _buildStatusBar() {
     return Container(
@@ -386,4 +557,16 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
       ),
     );
   }
+}
+
+class _ActionButtonConfig {
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  const _ActionButtonConfig({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
 }
