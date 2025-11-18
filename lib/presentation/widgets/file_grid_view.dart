@@ -12,6 +12,7 @@ import '../../infrastructure/clipboard_service.dart';
 import '../../infrastructure/file_manager_repository_impl.dart';
 import '../../infrastructure/desktop_launcher_service.dart';
 import '../../infrastructure/thumbnail_manager.dart';
+import '../../infrastructure/external_drag_service.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../application/file_manager/file_manager_bloc.dart';
 import '../../domain/vaxp.dart';
@@ -128,12 +129,12 @@ class FileGridViewState extends State<FileGridView> {
 
   Widget _buildGridView(FileManagerLoaded state) {
     return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (!_isDragging) {
-          _clearSelection();
-        }
-      },
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (!_isDragging) {
+            _clearSelection();
+          }
+        },
       onPanStart: (details) {
         // Store the start position but don't start dragging yet
         _selectionStart = details.localPosition;
@@ -579,11 +580,16 @@ if __name__ == '__main__':
         setState(() {
           _draggedFiles = filesToDrag;
         });
+        // Also start external drag for system-level drag-and-drop
+        final paths = filesToDrag.map((f) => f.path).toList();
+        ExternalDragService.startDrag(paths);
       },
       onDragEnd: (details) {
         setState(() {
           _draggedFiles = null;
         });
+        // Notify native code that Flutter drag has ended
+        ExternalDragService.endDrag();
       },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -658,11 +664,16 @@ if __name__ == '__main__':
         setState(() {
           _draggedFiles = filesToDrag;
         });
+        // Also start external drag for system-level drag-and-drop
+        final paths = filesToDrag.map((f) => f.path).toList();
+        ExternalDragService.startDrag(paths);
       },
       onDragEnd: (details) {
         setState(() {
           _draggedFiles = null;
         });
+        // Notify native code that Flutter drag has ended
+        ExternalDragService.endDrag();
       },
       child: _buildFolderDropTarget(folder, isSelected, canAcceptDrop),
     );
@@ -1190,15 +1201,21 @@ if __name__ == '__main__':
 
   void _copySelectedFiles() {
     if (_selectedFiles.isNotEmpty) {
-      ClipboardService.instance.setCopy(_selectedFiles.map((f) => f.path).toList());
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied selection to clipboard')));
+      ClipboardService.instance.setCopy(_selectedFiles.map((f) => f.path).toList()).then((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied selection to clipboard')));
+        }
+      });
     }
   }
 
   void _cutSelectedFiles() {
     if (_selectedFiles.isNotEmpty) {
-      ClipboardService.instance.setCut(_selectedFiles.map((f) => f.path).toList());
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cut selection to clipboard')));
+      ClipboardService.instance.setCut(_selectedFiles.map((f) => f.path).toList()).then((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cut selection to clipboard')));
+        }
+      });
     }
   }
 
