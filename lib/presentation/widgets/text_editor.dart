@@ -1431,7 +1431,7 @@ class _TextEditorPageState extends State<TextEditorPage> {
     final newText = currentText.replaceRange(
       cursorPosition,
       cursorPosition,
-      code + '\n',
+      '$code\n',
     );
     
     _controller.text = newText;

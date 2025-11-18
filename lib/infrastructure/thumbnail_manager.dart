@@ -60,8 +60,22 @@ class ThumbnailManager {
   /// Generate thumbnail for image file
   ImageProvider? _generateImageThumbnail(String path) {
     try {
+      final file = File(path);
+      
+      // Check if file exists
+      if (!file.existsSync()) {
+        return null;
+      }
+      
+      // Check if file is empty
+      final fileSize = file.lengthSync();
+      if (fileSize == 0) {
+        print('Image file is empty: $path');
+        return null;
+      }
+      
       return ResizeImage(
-        FileImage(File(path)),
+        FileImage(file),
         width: THUMBNAIL_SIZE.toInt(),
         policy: ResizeImagePolicy.fit,
       );
