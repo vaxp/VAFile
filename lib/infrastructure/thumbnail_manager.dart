@@ -11,8 +11,9 @@ class ThumbnailManager {
   final Map<String, ImageProvider> cache = {};
   final Map<String, Future<void>> _loadingTasks = {};
   
-  // Track failed video thumbnail attempts to avoid retry spam
+  // Track failed thumbnail attempts to avoid retry spam
   final Set<String> _failedVideoThumbnails = {};
+  final Set<String> _failedImageThumbnails = {};
 
   /// Load thumbnail for a file
   /// Call this during widget build to trigger async thumbnail generation
@@ -36,7 +37,11 @@ class ThumbnailManager {
     try {
       // Handle image files
       if (_isImageFile(ext)) {
-        provider = _generateImageThumbnail(path);
+        // Skip if we already tried and failed for this image
+        if (_failedImageThumbnails.contains(filename)) {
+          return;
+        }
+        provider = _generateImageThumbnail(path, filename);
       }
       // Handle video files
       else if (_isVideoFile(ext)) {
@@ -58,19 +63,20 @@ class ThumbnailManager {
   }
 
   /// Generate thumbnail for image file
-  ImageProvider? _generateImageThumbnail(String path) {
+  ImageProvider? _generateImageThumbnail(String path, String filename) {
     try {
       final file = File(path);
       
       // Check if file exists
       if (!file.existsSync()) {
+        _failedImageThumbnails.add(filename);
         return null;
       }
       
       // Check if file is empty
       final fileSize = file.lengthSync();
       if (fileSize == 0) {
-        print('Image file is empty: $path');
+        _failedImageThumbnails.add(filename);
         return null;
       }
       
@@ -80,7 +86,7 @@ class ThumbnailManager {
         policy: ResizeImagePolicy.fit,
       );
     } catch (e) {
-      print('Image thumbnail failed for $path: $e');
+      _failedImageThumbnails.add(filename);
       return null;
     }
   }
@@ -212,6 +218,7 @@ class ThumbnailManager {
   void clearCache() {
     cache.clear();
     _failedVideoThumbnails.clear();
+    _failedImageThumbnails.clear();
   }
 
   /// Check if a thumbnail is currently being loaded
