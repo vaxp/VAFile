@@ -417,5 +417,12 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         ));
       }
     });
+
+    on<ToggleFileExtensions>((event, emit) {
+      if (state is FileManagerLoaded) {
+        final currentState = state as FileManagerLoaded;
+        emit(currentState.copyWith(showFileExtensions: event.show));
+      }
+    });
   }
 }
