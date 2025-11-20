@@ -14,9 +14,9 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: Color(0xFF007AFF),
         secondary: Color(0xFF5856D6),
-        surface: Color.fromARGB(188, 0, 0, 0),
+        surface: Color.fromARGB(100, 0, 0, 0),
         // ignore: deprecated_member_use
-        background: Color.fromARGB(188, 0, 0, 0),
+        background: Color.fromARGB(100, 0, 0, 0),
         onSurface: Colors.white,
         // ignore: deprecated_member_use
         onBackground: Colors.white,

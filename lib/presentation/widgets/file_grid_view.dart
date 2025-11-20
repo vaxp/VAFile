@@ -116,8 +116,6 @@ class FileGridViewState extends State<FileGridView> {
               return _buildGridView(state);
             case ViewMode.list:
               return _buildListView(state);
-            case ViewMode.column:
-              return _buildColumnView(state);
             case ViewMode.gallery:
               return _buildGalleryView(state);
           }
@@ -234,25 +232,7 @@ class FileGridViewState extends State<FileGridView> {
     );
   }
 
-  Widget _buildColumnView(FileManagerLoaded state) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _clearSelection(),
-      onSecondaryTapDown: (_) => _clearSelection(),
-      child: ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(16),
-      scrollDirection: Axis.horizontal,
-      itemCount: state.filteredFiles.length,
-      itemBuilder: (context, index) {
-        final file = state.filteredFiles[index];
-        final isSelected = _selectedFiles.contains(file);
-        
-        return _buildColumnItem(file, isSelected);
-      },
-      ),
-    );
-  }
+
 
   Widget _buildGalleryView(FileManagerLoaded state) {
     return GestureDetector(
@@ -1026,51 +1006,7 @@ if __name__ == '__main__':
     );
   }
 
-  Widget _buildColumnItem(FileItem file, bool isSelected) {
-    return Container(
-      width: 200,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        // ignore: deprecated_member_use
-        color: isSelected ? const Color.fromARGB(255, 0, 255, 170).withOpacity(0.2) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        border: isSelected ? Border.all(color: const Color.fromARGB(255, 0, 255, 170), width: 2) : null,
-      ),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _onFileTap(file),
-        onDoubleTap: () => _openFile(file),
-        onSecondaryTapDown: (_) => _onFileTap(file),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(
-              flex: 3,
-              child: _buildFileIcon(file),
-            ),
-            Expanded(
-              flex: 1,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  file.name,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isSelected ? const Color.fromARGB(255, 0, 255, 170) : Colors.white70,
-                    fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-    
-  }
+ 
 
   Widget _buildGalleryItem(FileItem file, bool isSelected) {
     return Container(
@@ -1093,7 +1029,7 @@ if __name__ == '__main__':
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: const Color.fromARGB(188, 0, 0, 0),
+                color: const Color.fromARGB(100, 0, 0, 0),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: file.isDirectory
@@ -1161,7 +1097,7 @@ if __name__ == '__main__':
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+        backgroundColor: const Color.fromARGB(100, 0, 0, 0),
         title: Text('File Details', style: const TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1582,7 +1518,7 @@ class _RenameDialogState extends State<_RenameDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+      backgroundColor: const Color.fromARGB(100, 0, 0, 0),
       title: const Text('Rename', style: TextStyle(color: Colors.white)),
       content: TextField(
         controller: _controller,

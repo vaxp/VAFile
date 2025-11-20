@@ -27,7 +27,7 @@ class _NewFolderDialogState extends State<NewFolderDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+      backgroundColor: const Color.fromARGB(100, 0, 0, 0),
       title: const Text('New Folder', style: TextStyle(color: Colors.white)),
       content: TextField(
         controller: _controller,

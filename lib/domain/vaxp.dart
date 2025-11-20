@@ -1,6 +1,6 @@
 // Domain models for FileManager
 
-enum ViewMode { grid, list, column, gallery }
+enum ViewMode { grid, list,  gallery }
 
 class DeviceInfo {
   final String name;

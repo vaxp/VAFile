@@ -34,7 +34,6 @@ class Sidebar extends StatelessWidget {
                   fm.LoadDirectory(Platform.environment['HOME'] ?? '/home'),
                 ),
               ),
-              const Divider(color: Color(0xFF404040), height: 8),
               _buildSidebarItem(
                 icon: Icons.description,
                 title: 'Documents',
@@ -70,7 +69,6 @@ class Sidebar extends StatelessWidget {
                   fm.LoadDirectory('${Platform.environment['HOME']}/Videos'),
                 ),
               ),
-              const Divider(color: Color(0xFF404040), height: 8),
               _buildSidebarItem(
                 icon: Icons.delete,
                 title: 'Trash',
@@ -85,7 +83,6 @@ class Sidebar extends StatelessWidget {
                   if (state is fm.FileManagerLoaded && state.connectedDevices.isNotEmpty) {
                     return Column(
                       children: [
-                        const Divider(color: Color(0xFF404040), height: 8),
                         ...state.connectedDevices.map((device) {
                           return _buildSidebarItem(
                             icon: device.icon as IconData,

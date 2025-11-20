@@ -1,0 +1,38 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vafile/application/file_manager/file_manager_bloc.dart' as fm;
+
+class NavigationControls extends StatelessWidget {
+  const NavigationControls({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<fm.FileManagerBloc, fm.FileManagerState>(
+      builder: (context, state) {
+        if (state is fm.FileManagerLoaded) {
+          return Row(
+            children: [
+              IconButton(
+                icon: Icon(
+                  Icons.arrow_back_ios,
+                  size: 16,
+                  color: state.canGoBack ? Colors.white70 : Colors.white24,
+                ),
+                onPressed: state.canGoBack ? () => context.read<fm.FileManagerBloc>().add(fm.NavigateBack()) : null,
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: state.canGoForward ? Colors.white70 : Colors.white24,
+                ),
+                onPressed: state.canGoForward ? () => context.read<fm.FileManagerBloc>().add(fm.NavigateForward()) : null,
+              ),
+            ],
+          );
+        }
+        return const SizedBox();
+      },
+    );
+  }
+}

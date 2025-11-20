@@ -119,7 +119,7 @@ class _DesktopLauncherDialogState extends State<DesktopLauncherDialog> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return AlertDialog(
-            backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+            backgroundColor: const Color.fromARGB(100, 0, 0, 0),
             title: const Text(
               'Loading Application',
               style: TextStyle(color: Colors.white),
@@ -141,7 +141,7 @@ class _DesktopLauncherDialogState extends State<DesktopLauncherDialog> {
 
         if (snapshot.hasError || snapshot.data == null) {
           return AlertDialog(
-            backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+            backgroundColor: const Color.fromARGB(100, 0, 0, 0),
             title: const Text(
               'Invalid Application File',
               style: TextStyle(color: Colors.red),
@@ -165,7 +165,7 @@ class _DesktopLauncherDialogState extends State<DesktopLauncherDialog> {
         final entry = snapshot.data!;
 
         return AlertDialog(
-          backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+          backgroundColor: const Color.fromARGB(100, 0, 0, 0),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -789,9 +789,9 @@ class _TextEditorPageState extends State<TextEditorPage> {
         return true;
       },
       child: Scaffold(
-        backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+        backgroundColor: const Color.fromARGB(100, 0, 0, 0),
         appBar: AppBar(
-          backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+          backgroundColor: const Color.fromARGB(100, 0, 0, 0),
           elevation: 0,
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -977,7 +977,7 @@ class _TextEditorPageState extends State<TextEditorPage> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           filled: true,
-                          fillColor: const Color.fromARGB(188, 0, 0, 0),
+                          fillColor: const Color.fromARGB(100, 0, 0, 0),
                           hintText: 'Start typing...',
                           hintStyle: const TextStyle(
                             color: Colors.white24,
@@ -1131,7 +1131,7 @@ class _TextEditorPageState extends State<TextEditorPage> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 filled: true,
-                                fillColor: const Color.fromARGB(188, 0, 0, 0),
+                                fillColor: const Color.fromARGB(100, 0, 0, 0),
                                 hintText: 'Start typing...',
                                 hintStyle: const TextStyle(
                                   color: Colors.white24,
@@ -1351,7 +1351,7 @@ class _TextEditorPageState extends State<TextEditorPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+        backgroundColor: const Color.fromARGB(100, 0, 0, 0),
         title: Text(
           title,
           style: const TextStyle(color: Colors.white),
@@ -1450,7 +1450,7 @@ class _TextEditorPageState extends State<TextEditorPage> {
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
-            backgroundColor: const Color.fromARGB(188, 0, 0, 0),
+            backgroundColor: const Color.fromARGB(100, 0, 0, 0),
             title: const Text(
               'Unsaved Changes',
               style: TextStyle(color: Colors.white),
