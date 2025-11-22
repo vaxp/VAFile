@@ -4,27 +4,42 @@ import '../domain/vaxp.dart';
 
 class DeviceDetectionService {
   static List<DeviceInfo>? _cachedDevices;
-  static DateTime? _lastDetectionTime;
-  static const Duration _cacheExpiry = Duration(seconds: 5);
 
   /// Detect all mounted storage devices on the system with caching
+  /// Only updates cache when devices actually change
   static Future<List<DeviceInfo>> detectDevices() async {
-    // Return cached devices if they're still valid
-    if (_cachedDevices != null && _lastDetectionTime != null) {
-      final timeSinceLastDetection = DateTime.now().difference(_lastDetectionTime!);
-      if (timeSinceLastDetection < _cacheExpiry) {
-        return _cachedDevices!;
-      }
+    final currentDevices = await _detectDevicesFromSystem();
+
+    // Compare with cached devices
+    if (_cachedDevices != null && _devicesListsAreEqual(_cachedDevices!, currentDevices)) {
+      // Devices haven't changed, return cached list
+      return _cachedDevices!;
     }
 
+    // Devices have changed, update cache
+    _cachedDevices = currentDevices;
+    return currentDevices;
+  }
+
+  /// Check if two device lists are identical
+  static bool _devicesListsAreEqual(List<DeviceInfo> list1, List<DeviceInfo> list2) {
+    if (list1.length != list2.length) return false;
+
+    for (int i = 0; i < list1.length; i++) {
+      if (list1[i] != list2[i]) return false;
+    }
+
+    return true;
+  }
+
+  /// Internal method to detect devices from the system without caching
+  static Future<List<DeviceInfo>> _detectDevicesFromSystem() async {
     final devices = <DeviceInfo>[];
 
     try {
       // Read /etc/mtab to get all mounted filesystems
       final mtabFile = File('/etc/mtab');
       if (!await mtabFile.exists()) {
-        _cachedDevices = devices;
-        _lastDetectionTime = DateTime.now();
         return devices;
       }
 
@@ -87,15 +102,9 @@ class DeviceDetectionService {
         return a.isRemovable ? 1 : -1;
       });
 
-      // Cache the results
-      _cachedDevices = devices;
-      _lastDetectionTime = DateTime.now();
-
       return devices;
     } catch (e) {
       print('Error detecting devices: $e');
-      _cachedDevices = devices;
-      _lastDetectionTime = DateTime.now();
       return devices;
     }
   }
@@ -103,7 +112,6 @@ class DeviceDetectionService {
   /// Clear the cache (useful when you know devices have changed)
   static void clearCache() {
     _cachedDevices = null;
-    _lastDetectionTime = null;
   }
 
   static bool _shouldSkipMountPoint(String mountPoint, String fileSystem) {

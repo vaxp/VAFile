@@ -111,3 +111,7 @@ class ToggleFileExtensions extends FileManagerEvent {
   @override
   List<Object?> get props => [show];
 }
+
+class CheckConnectedDevices extends FileManagerEvent {
+  const CheckConnectedDevices();
+}

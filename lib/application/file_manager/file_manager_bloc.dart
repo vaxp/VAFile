@@ -70,7 +70,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         currentPath = event.path;
         files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
         filteredFiles = List<FileItem>.from(files);
-        connectedDevices = await repository.detectConnectedDevices();
+        
+        // Don't reload devices on directory navigation
         emit(FileManagerLoaded(
           currentPath: currentPath,
           files: files,
@@ -100,7 +101,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         currentPath = target;
         files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
         filteredFiles = List<FileItem>.from(files);
-        connectedDevices = await repository.detectConnectedDevices();
+        
+        // Don't reload devices on back navigation
         emit(FileManagerLoaded(
           currentPath: currentPath,
           files: files,
@@ -130,7 +132,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         currentPath = target;
         files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
         filteredFiles = List<FileItem>.from(files);
-        connectedDevices = await repository.detectConnectedDevices();
+        
+        // Don't reload devices on forward navigation
         emit(FileManagerLoaded(
           currentPath: currentPath,
           files: files,
@@ -178,20 +181,9 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           await repository.renameFile(event.file, event.newName);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
-          connectedDevices = await repository.detectConnectedDevices();
-          emit(FileManagerLoaded(
-            currentPath: currentPath,
+          emit(currentState.copyWith(
             files: files,
             filteredFiles: filteredFiles,
-            searchQuery: searchQuery,
-            availableSpace: '',
-            viewMode: currentState.viewMode,
-            showHiddenFiles: showHiddenFiles,
-            showFileExtensions: true,
-            canGoBack: _backStack.isNotEmpty,
-            canGoForward: _forwardStack.isNotEmpty,
-            sortBy: currentState.sortBy,
-            connectedDevices: connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));
@@ -206,20 +198,9 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           await repository.deleteFile(event.file);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
-          connectedDevices = await repository.detectConnectedDevices();
-          emit(FileManagerLoaded(
-            currentPath: currentPath,
+          emit(currentState.copyWith(
             files: files,
             filteredFiles: filteredFiles,
-            searchQuery: searchQuery,
-            availableSpace: '',
-            viewMode: currentState.viewMode,
-            showHiddenFiles: showHiddenFiles,
-            showFileExtensions: true,
-            canGoBack: _backStack.isNotEmpty,
-            canGoForward: _forwardStack.isNotEmpty,
-            sortBy: currentState.sortBy,
-            connectedDevices: connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));
@@ -234,20 +215,9 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           await repository.copyFile(event.file, event.destination);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
-          connectedDevices = await repository.detectConnectedDevices();
-          emit(FileManagerLoaded(
-            currentPath: currentPath,
+          emit(currentState.copyWith(
             files: files,
             filteredFiles: filteredFiles,
-            searchQuery: searchQuery,
-            availableSpace: '',
-            viewMode: currentState.viewMode,
-            showHiddenFiles: showHiddenFiles,
-            showFileExtensions: true,
-            canGoBack: _backStack.isNotEmpty,
-            canGoForward: _forwardStack.isNotEmpty,
-            sortBy: currentState.sortBy,
-            connectedDevices: connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));
@@ -262,20 +232,9 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           await repository.moveFile(event.file, event.destination);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
-          connectedDevices = await repository.detectConnectedDevices();
-          emit(FileManagerLoaded(
-            currentPath: currentPath,
+          emit(currentState.copyWith(
             files: files,
             filteredFiles: filteredFiles,
-            searchQuery: searchQuery,
-            availableSpace: '',
-            viewMode: currentState.viewMode,
-            showHiddenFiles: showHiddenFiles,
-            showFileExtensions: true,
-            canGoBack: _backStack.isNotEmpty,
-            canGoForward: _forwardStack.isNotEmpty,
-            sortBy: currentState.sortBy,
-            connectedDevices: connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));
@@ -290,20 +249,9 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           await repository.compressFiles(event.files.map((f) => f.path).toList(), event.destination);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
-          connectedDevices = await repository.detectConnectedDevices();
-          emit(FileManagerLoaded(
-            currentPath: currentPath,
+          emit(currentState.copyWith(
             files: files,
             filteredFiles: filteredFiles,
-            searchQuery: searchQuery,
-            availableSpace: '',
-            viewMode: currentState.viewMode,
-            showHiddenFiles: showHiddenFiles,
-            showFileExtensions: true,
-            canGoBack: _backStack.isNotEmpty,
-            canGoForward: _forwardStack.isNotEmpty,
-            sortBy: currentState.sortBy,
-            connectedDevices: connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));
@@ -395,6 +343,22 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
       if (state is FileManagerLoaded) {
         final currentState = state as FileManagerLoaded;
         emit(currentState.copyWith(showFileExtensions: event.show));
+      }
+    });
+
+    on<CheckConnectedDevices>((event, emit) async {
+      if (state is FileManagerLoaded) {
+        final currentState = state as FileManagerLoaded;
+        try {
+          final updatedDevices = await repository.detectConnectedDevices();
+          // Only emit if devices actually changed (Equatable will handle comparison)
+          if (updatedDevices != connectedDevices) {
+            connectedDevices = updatedDevices;
+            emit(currentState.copyWith(connectedDevices: connectedDevices));
+          }
+        } catch (e) {
+          print('Error checking connected devices: $e');
+        }
       }
     });
   }
