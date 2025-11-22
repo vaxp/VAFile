@@ -12,12 +12,16 @@ class EditorSearchBar extends StatefulWidget {
   final TextEditingController textController;
   final VoidCallback? onClose;
   final Function(String searchText, List<int> matchPositions, int currentMatchIndex)? onSearchUpdated;
+  final ScrollController? scrollController;
+  final Function(int lineNumber)? onScrollToLine;
 
   const EditorSearchBar({
     super.key,
     required this.textController,
     this.onClose,
     this.onSearchUpdated,
+    this.scrollController,
+    this.onScrollToLine,
   });
 
   @override
@@ -90,21 +94,17 @@ class _EditorSearchBarState extends State<EditorSearchBar> {
       final matchStart = _matchPositions[matchIndex];
       final searchText = _searchController.text;
       
-      // Calculate line number
+      // Calculate line number (1-based)
       int lineNumber = widget.textController.text.substring(0, matchStart).split('\n').length;
       
-      // Find the text around the match for scrolling context
-      final fullText = widget.textController.text;
-      int lineStart = 0;
-      for (int i = 0; i < lineNumber - 1; i++) {
-        lineStart = fullText.indexOf('\n', lineStart) + 1;
-      }
-
       // Update selection to show the match
       widget.textController.selection = TextSelection(
         baseOffset: matchStart,
         extentOffset: matchStart + searchText.length,
       );
+      
+      // Call scroll callback to scroll to the line
+      widget.onScrollToLine?.call(lineNumber);
     }
   }
 
@@ -1259,6 +1259,7 @@ class _TextEditorPageState extends State<TextEditorPage> {
           if (_showSearchBar)
             EditorSearchBar(
               textController: _controller,
+              scrollController: _editorTextScrollController,
               onClose: () {
                 setState(() {
                   _showSearchBar = false;
@@ -1269,6 +1270,9 @@ class _TextEditorPageState extends State<TextEditorPage> {
                 setState(() {
                   _controller.setSearchHighlight(searchText, matchPositions, currentMatchIndex);
                 });
+              },
+              onScrollToLine: (lineNumber) {
+                _scrollToLine(lineNumber);
               },
             ),
           Container(
@@ -1651,6 +1655,22 @@ class _TextEditorPageState extends State<TextEditorPage> {
   int _getLineCount() {
     if (_controller.text.isEmpty) return 1;
     return '\n'.allMatches(_controller.text).length + 1;
+  }
+
+  void _scrollToLine(int lineNumber) {
+    if (!_editorTextScrollController.hasClients) return;
+    
+    // Calculate the approximate position in the scroll view
+    // Line height is 23.6 pixels (1.7 * 14 font size)
+    const double lineHeight = 23.6;
+    final double targetOffset = (lineNumber - 1) * lineHeight;
+    
+    // Animate to the target offset
+    _editorTextScrollController.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   Future<void> _runFile() async {
