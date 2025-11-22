@@ -103,6 +103,7 @@ class Sidebar extends StatelessWidget {
                             icon: device.icon as IconData,
                             title: device.name as String,
                             subtitle: '${_formatBytes(device.freeSpace as int)} free',
+                            deviceMountPoint: device.mountPoint as String,
                             onTap: () {
                               context.read<fm.FileManagerBloc>().add(
                                 fm.LoadDirectory(device.mountPoint as String),
@@ -137,12 +138,18 @@ class Sidebar extends StatelessWidget {
     required VoidCallback onTap,
     Color? iconColor,
     String? subtitle,
+    String? deviceMountPoint,
   }) {
     return BlocSelector<fm.FileManagerBloc, fm.FileManagerState, bool>(
       selector: (state) {
         if (state is fm.FileManagerLoaded) {
           String homePath = _getUserHomePath();
           String currentPath = state.currentPath;
+          
+          // إذا كان جهاز متصل، قارن مع mount point
+          if (deviceMountPoint != null) {
+            return currentPath == deviceMountPoint;
+          }
           
           // تحديد المؤشر بناءً على المسار الحالي
           if (title == 'Home') {
