@@ -1245,7 +1245,7 @@ if __name__ == '__main__':
       final isImage = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].contains(extension);
       final isVideo = ['.mp4', '.avi', '.mov', '.mkv', '.webm'].contains(extension);
       final isAudio = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.opus'].contains(extension);
-      final isText = ['.text', '.md', '.c', '.cc', '.dart', '.py', '.sh', '.txt', '.rtf', '.html', '.js', '.ts', '.json', '.yaml', '.yml'].contains(extension);
+      final isText = ['.text', '.md', '.c', '.cc', '.dart', '.py', '.sh', '.txt', '.rtf', '.html', '.js', '.ts', '.json', '.yaml', '.yml', '.conf', '.config'].contains(extension);
       final isDeb = extension == '.deb';
       final isDesktop = extension == '.desktop';
       

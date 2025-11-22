@@ -294,15 +294,30 @@ class FileManagerRepositoryImpl implements FileManagerRepository {
   @override
   Future<void> restoreFromTrash(FileItem file, String originalPath) async {
     try {
-      final originalDir = Directory(p.dirname(originalPath));
+      final originalDir = Directory(originalPath);
       if (!originalDir.existsSync()) {
         await originalDir.create(recursive: true);
       }
 
+      final restoredFilePath = p.join(originalPath, file.name);
+      
+      // If file already exists, rename with counter
+      String finalPath = restoredFilePath;
+      int counter = 1;
+      while (File(finalPath).existsSync() || Directory(finalPath).existsSync()) {
+        final extension = p.extension(file.name);
+        final nameWithoutExt = p.basenameWithoutExtension(file.name);
+        final newName = extension.isEmpty
+            ? '$nameWithoutExt ($counter)'
+            : '$nameWithoutExt ($counter)$extension';
+        finalPath = p.join(originalPath, newName);
+        counter++;
+      }
+
       if (FileSystemEntity.isDirectorySync(file.path)) {
-        await Directory(file.path).rename(originalPath);
+        await Directory(file.path).rename(finalPath);
       } else {
-        await File(file.path).rename(originalPath);
+        await File(file.path).rename(finalPath);
       }
     } catch (e) {
       throw Exception('Failed to restore from trash: $e');
