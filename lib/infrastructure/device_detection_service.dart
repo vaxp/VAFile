@@ -3,14 +3,28 @@ import 'package:flutter/material.dart';
 import '../domain/vaxp.dart';
 
 class DeviceDetectionService {
-  /// Detect all mounted storage devices on the system
+  static List<DeviceInfo>? _cachedDevices;
+  static DateTime? _lastDetectionTime;
+  static const Duration _cacheExpiry = Duration(seconds: 5);
+
+  /// Detect all mounted storage devices on the system with caching
   static Future<List<DeviceInfo>> detectDevices() async {
+    // Return cached devices if they're still valid
+    if (_cachedDevices != null && _lastDetectionTime != null) {
+      final timeSinceLastDetection = DateTime.now().difference(_lastDetectionTime!);
+      if (timeSinceLastDetection < _cacheExpiry) {
+        return _cachedDevices!;
+      }
+    }
+
     final devices = <DeviceInfo>[];
 
     try {
       // Read /etc/mtab to get all mounted filesystems
       final mtabFile = File('/etc/mtab');
       if (!await mtabFile.exists()) {
+        _cachedDevices = devices;
+        _lastDetectionTime = DateTime.now();
         return devices;
       }
 
@@ -73,11 +87,23 @@ class DeviceDetectionService {
         return a.isRemovable ? 1 : -1;
       });
 
+      // Cache the results
+      _cachedDevices = devices;
+      _lastDetectionTime = DateTime.now();
+
       return devices;
     } catch (e) {
       print('Error detecting devices: $e');
+      _cachedDevices = devices;
+      _lastDetectionTime = DateTime.now();
       return devices;
     }
+  }
+
+  /// Clear the cache (useful when you know devices have changed)
+  static void clearCache() {
+    _cachedDevices = null;
+    _lastDetectionTime = null;
   }
 
   static bool _shouldSkipMountPoint(String mountPoint, String fileSystem) {

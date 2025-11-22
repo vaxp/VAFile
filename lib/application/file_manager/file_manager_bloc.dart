@@ -317,19 +317,10 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         showHiddenFiles = event.show;
         files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
         filteredFiles = List<FileItem>.from(files);
-        emit(FileManagerLoaded(
-          currentPath: currentPath,
+        emit(currentState.copyWith(
           files: files,
           filteredFiles: filteredFiles,
-          searchQuery: searchQuery,
-          availableSpace: '',
-          viewMode: currentState.viewMode,
           showHiddenFiles: showHiddenFiles,
-          showFileExtensions: true,
-          canGoBack: _backStack.isNotEmpty,
-          canGoForward: _forwardStack.isNotEmpty,
-          sortBy: currentState.sortBy,
-          connectedDevices: currentState.connectedDevices,
         ));
       }
     });
@@ -347,19 +338,9 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         try {
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
-          emit(FileManagerLoaded(
-            currentPath: currentPath,
+          emit(currentState.copyWith(
             files: files,
             filteredFiles: filteredFiles,
-            searchQuery: searchQuery,
-            availableSpace: '',
-            viewMode: currentState.viewMode,
-            showHiddenFiles: showHiddenFiles,
-            showFileExtensions: true,
-            canGoBack: _backStack.isNotEmpty,
-            canGoForward: _forwardStack.isNotEmpty,
-            sortBy: currentState.sortBy,
-            connectedDevices: currentState.connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));
@@ -374,19 +355,9 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
           await repository.createNewFolder(currentPath, event.name);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
-          emit(FileManagerLoaded(
-            currentPath: currentPath,
+          emit(currentState.copyWith(
             files: files,
             filteredFiles: filteredFiles,
-            searchQuery: searchQuery,
-            availableSpace: '',
-            viewMode: currentState.viewMode,
-            showHiddenFiles: showHiddenFiles,
-            showFileExtensions: true,
-            canGoBack: _backStack.isNotEmpty,
-            canGoForward: _forwardStack.isNotEmpty,
-            sortBy: currentState.sortBy,
-            connectedDevices: currentState.connectedDevices,
           ));
         } catch (e) {
           emit(FileManagerError(e.toString()));

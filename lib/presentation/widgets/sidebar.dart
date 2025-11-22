@@ -87,19 +87,25 @@ class Sidebar extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               // Connected Devices Section
-              BlocBuilder<fm.FileManagerBloc, fm.FileManagerState>(
-                builder: (context, state) {
-                  if (state is fm.FileManagerLoaded && state.connectedDevices.isNotEmpty) {
+              BlocSelector<fm.FileManagerBloc, fm.FileManagerState, dynamic>(
+                selector: (state) {
+                  if (state is fm.FileManagerLoaded) {
+                    return state.connectedDevices;
+                  }
+                  return [];
+                },
+                builder: (context, connectedDevices) {
+                  if ((connectedDevices as List).isNotEmpty) {
                     return Column(
                       children: [
-                        ...state.connectedDevices.map((device) {
+                        ...connectedDevices.map((device) {
                           return _buildSidebarItem(
                             icon: device.icon as IconData,
-                            title: device.name,
-                            subtitle: '${_formatBytes(device.freeSpace)} free',
+                            title: device.name as String,
+                            subtitle: '${_formatBytes(device.freeSpace as int)} free',
                             onTap: () {
                               context.read<fm.FileManagerBloc>().add(
-                                fm.LoadDirectory(device.mountPoint),
+                                fm.LoadDirectory(device.mountPoint as String),
                               );
                             },
                           );

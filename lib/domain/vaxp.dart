@@ -1,8 +1,9 @@
 // Domain models for FileManager
+import 'package:equatable/equatable.dart';
 
 enum ViewMode { grid, list,  gallery }
 
-class DeviceInfo {
+class DeviceInfo extends Equatable {
   final String name;
   final String mountPoint;
   final String devicePath;
@@ -12,7 +13,7 @@ class DeviceInfo {
   final bool isRemovable;
   final dynamic icon; // Use dynamic for icon, UI layer will handle type
 
-  DeviceInfo({
+  const DeviceInfo({
     required this.name,
     required this.mountPoint,
     required this.devicePath,
@@ -22,9 +23,21 @@ class DeviceInfo {
     required this.isRemovable,
     required this.icon,
   });
+
+  @override
+  List<Object?> get props => [
+    name,
+    mountPoint,
+    devicePath,
+    fileSystem,
+    totalSpace,
+    freeSpace,
+    isRemovable,
+    // Note: icon is excluded from props comparison because it's dynamic
+  ];
 }
 
-class FileItem {
+class FileItem extends Equatable {
   final String name;
   final String path;
   final bool isDirectory;
@@ -32,7 +45,7 @@ class FileItem {
   final DateTime modified;
   final String extension;
 
-  FileItem({
+  const FileItem({
     required this.name,
     required this.path,
     required this.isDirectory,
@@ -40,4 +53,14 @@ class FileItem {
     required this.modified,
     required this.extension,
   });
+
+  @override
+  List<Object?> get props => [
+    name,
+    path,
+    isDirectory,
+    size,
+    modified,
+    extension,
+  ];
 }
