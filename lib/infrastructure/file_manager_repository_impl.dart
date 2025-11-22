@@ -79,8 +79,167 @@ class FileManagerRepositoryImpl implements FileManagerRepository {
   }
 
   @override
-  Future<void> compressFiles(List<String> filePaths, String destination) async {
-    throw UnimplementedError('File compression not implemented yet');
+  Future<void> compressFiles(List<String> filePaths, String destination, String format) async {
+    try {
+      for (final filePath in filePaths) {
+        String archivePath;
+        
+        switch (format.toLowerCase()) {
+          case 'zip':
+            archivePath = p.join(destination, '${p.basenameWithoutExtension(filePath)}.zip');
+            await _compressToZip(filePath, archivePath);
+            break;
+          case 'tar':
+            archivePath = p.join(destination, '${p.basenameWithoutExtension(filePath)}.tar');
+            await _compressToTar(filePath, archivePath, gzip: false, bzip2: false);
+            break;
+          case 'tar.gz':
+            archivePath = p.join(destination, '${p.basenameWithoutExtension(filePath)}.tar.gz');
+            await _compressToTar(filePath, archivePath, gzip: true);
+            break;
+          case 'tar.bz2':
+            archivePath = p.join(destination, '${p.basenameWithoutExtension(filePath)}.tar.bz2');
+            await _compressToTar(filePath, archivePath, bzip2: true);
+            break;
+          case '7z':
+            archivePath = p.join(destination, '${p.basenameWithoutExtension(filePath)}.7z');
+            await _compressTo7z(filePath, archivePath);
+            break;
+          default:
+            throw ArgumentError('Unsupported archive format: $format');
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to compress files: $e');
+    }
+  }
+
+  @override
+  Future<void> extractArchive(String archivePath, String destinationPath) async {
+    try {
+      final extension = p.extension(archivePath).toLowerCase();
+      
+      switch (extension) {
+        case '.zip':
+          await _extractZip(archivePath, destinationPath);
+          break;
+        case '.tar':
+          await _extractTar(archivePath, destinationPath);
+          break;
+        case '.gz':
+          // Check if it's tar.gz
+          if (archivePath.endsWith('.tar.gz')) {
+            await _extractTarGz(archivePath, destinationPath);
+          } else {
+            await _extractGz(archivePath, destinationPath);
+          }
+          break;
+        case '.bz2':
+          // Check if it's tar.bz2
+          if (archivePath.endsWith('.tar.bz2')) {
+            await _extractTarBz2(archivePath, destinationPath);
+          } else {
+            throw Exception('Unsupported archive format: $extension');
+          }
+          break;
+        case '.7z':
+          await _extract7z(archivePath, destinationPath);
+          break;
+        default:
+          throw Exception('Unsupported archive format: $extension');
+      }
+    } catch (e) {
+      throw Exception('Failed to extract archive: $e');
+    }
+  }
+
+  Future<void> _compressToZip(String sourcePath, String archivePath) async {
+    final basename = p.basename(sourcePath);
+    final parentDir = p.dirname(sourcePath);
+    final process = await Process.start('zip', ['-r', archivePath, basename], workingDirectory: parentDir);
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      throw Exception('zip command failed with exit code $exitCode');
+    }
+  }
+
+  Future<void> _compressToTar(String sourcePath, String archivePath, {bool gzip = false, bool bzip2 = false}) async {
+    final List<String> args = [];
+    
+    if (gzip) {
+      args.add('-czf');
+    } else if (bzip2) {
+      args.add('-cjf');
+    } else {
+      args.add('-cf');
+    }
+    
+    args.add(archivePath);
+    args.add(p.basename(sourcePath));
+    
+    final process = await Process.start('tar', args, workingDirectory: p.dirname(sourcePath));
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      throw Exception('tar command failed with exit code $exitCode');
+    }
+  }
+
+  Future<void> _compressTo7z(String sourcePath, String archivePath) async {
+    final basename = p.basename(sourcePath);
+    final parentDir = p.dirname(sourcePath);
+    final process = await Process.start('7z', ['a', archivePath, basename], workingDirectory: parentDir);
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      throw Exception('7z command failed with exit code $exitCode');
+    }
+  }
+
+  Future<void> _extractZip(String archivePath, String destinationPath) async {
+    final process = await Process.start('unzip', ['-o', archivePath, '-d', destinationPath]);
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      throw Exception('unzip command failed with exit code $exitCode');
+    }
+  }
+
+  Future<void> _extractTar(String archivePath, String destinationPath) async {
+    final process = await Process.start('tar', ['-xf', archivePath, '-C', destinationPath]);
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      throw Exception('tar command failed with exit code $exitCode');
+    }
+  }
+
+  Future<void> _extractTarGz(String archivePath, String destinationPath) async {
+    final process = await Process.start('tar', ['-xzf', archivePath, '-C', destinationPath]);
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      throw Exception('tar command failed with exit code $exitCode');
+    }
+  }
+
+  Future<void> _extractGz(String archivePath, String destinationPath) async {
+    final process = await Process.start('gunzip', ['-c', archivePath]);
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      throw Exception('gunzip command failed with exit code $exitCode');
+    }
+  }
+
+  Future<void> _extractTarBz2(String archivePath, String destinationPath) async {
+    final process = await Process.start('tar', ['-xjf', archivePath, '-C', destinationPath]);
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      throw Exception('tar command failed with exit code $exitCode');
+    }
+  }
+
+  Future<void> _extract7z(String archivePath, String destinationPath) async {
+    final process = await Process.start('7z', ['x', archivePath, '-o$destinationPath']);
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      throw Exception('7z command failed with exit code $exitCode');
+    }
   }
 
   Future<void> _copyDirectory(Directory source, Directory destination) async {

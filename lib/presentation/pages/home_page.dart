@@ -215,6 +215,12 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
         icon: Icons.folder_zip,
         onPressed: grid == null ? null : () => _showCompressDialog(context, file),
       ),
+      if (_isArchiveFile(file))
+        _ActionButtonConfig(
+          label: 'Extract',
+          icon: Icons.unarchive,
+          onPressed: grid == null ? null : () => _showExtractDialog(context, file),
+        ),
       _ActionButtonConfig(
         label: 'Delete',
         icon: Icons.delete_outline,
@@ -267,6 +273,15 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
 
   static const Set<String> _debExtensions = {'.deb'};
   static const Set<String> _desktopExtensions = {'.desktop'};
+  static const Set<String> _archiveExtensions = {'.zip', '.tar', '.tar.gz', '.tar.bz2', '.7z', '.gz', '.bz2'};
+
+  bool _isArchiveFile(FileItem file) {
+    final name = file.name.toLowerCase();
+    // Check for exact extensions including compound ones
+    if (name.endsWith('.tar.gz') || name.endsWith('.tar.bz2')) return true;
+    // Check for single extensions
+    return _archiveExtensions.contains(file.extension.toLowerCase());
+  }
 
   Widget buildStatusBar() {
     return RepaintBoundary(
@@ -357,38 +372,21 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
     );
   }
 
-  void _showCompressDialog(BuildContext context, FileItem file) {
-    final controller = TextEditingController(text: '${file.name}.zip');
+  void _showExtractDialog(BuildContext context, FileItem file) {
+    final state = context.read<fm.FileManagerBloc>().state;
+    final currentPath = state is fm.FileManagerLoaded ? state.currentPath : '';
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2D2D2D),
         title: const Text(
-          'Compress File',
+          'Extract Archive',
           style: TextStyle(color: Colors.white),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Archive name:',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: controller,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintStyle: const TextStyle(color: Colors.white54),
-                filled: true,
-                fillColor: const Color(0xFF1F1F1F),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: Color(0xFF404040)),
-                ),
-              ),
-            ),
-          ],
+        content: Text(
+          'Extract "${file.name}" to current directory?',
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
@@ -397,23 +395,175 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
           ),
           TextButton(
             onPressed: () {
-              final archiveName = controller.text;
-              if (archiveName.isNotEmpty) {
-                final state = context.read<fm.FileManagerBloc>().state;
-                if (state is fm.FileManagerLoaded) {
-                  context.read<fm.FileManagerBloc>().add(
-                    fm.CompressFiles([file], state.currentPath),
-                  );
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Compressing ${file.name}')),
-                  );
-                }
-              }
+              context.read<fm.FileManagerBloc>().add(
+                fm.ExtractArchive(file, currentPath),
+              );
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Extracting ${file.name}...')),
+              );
             },
-            child: const Text('Compress', style: TextStyle(color: Color(0xFF007AFF))),
+            child: const Text('Extract', style: TextStyle(color: Color(0xFF34C759))),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showCompressDialog(BuildContext context, FileItem file) {
+    final controller = TextEditingController(text: file.name);
+    String selectedFormat = 'zip';
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: const Color(0xFF2D2D2D),
+          title: const Text(
+            'Compress File',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Archive name:',
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  filled: true,
+                  fillColor: const Color(0xFF1F1F1F),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: const BorderSide(color: Color(0xFF404040)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Archive Format:',
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F1F1F),
+                  border: Border.all(color: const Color(0xFF404040)),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: DropdownButton<String>(
+                  value: selectedFormat,
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  dropdownColor: const Color(0xFF2D2D2D),
+                  style: const TextStyle(color: Colors.white),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => selectedFormat = value);
+                    }
+                  },
+                  items: [
+                    DropdownMenuItem(
+                      value: 'zip',
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.folder_zip, color: Color(0xFF007AFF), size: 18),
+                            SizedBox(width: 8),
+                            Text('ZIP (.zip)'),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'tar',
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.folder_zip, color: Color(0xFF34C759), size: 18),
+                            SizedBox(width: 8),
+                            Text('TAR (.tar)'),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'tar.gz',
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.folder_zip, color: Color(0xFFFF9500), size: 18),
+                            SizedBox(width: 8),
+                            Text('TAR.GZ (.tar.gz)'),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'tar.bz2',
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.folder_zip, color: Color(0xFFFF3B30), size: 18),
+                            SizedBox(width: 8),
+                            Text('TAR.BZ2 (.tar.bz2)'),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: '7z',
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.folder_zip, color: Color(0xFFA2845E), size: 18),
+                            SizedBox(width: 8),
+                            Text('7Z (.7z)'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+            ),
+            TextButton(
+              onPressed: () {
+                final archiveName = controller.text;
+                if (archiveName.isNotEmpty) {
+                  final state = context.read<fm.FileManagerBloc>().state;
+                  if (state is fm.FileManagerLoaded) {
+                    context.read<fm.FileManagerBloc>().add(
+                      fm.CompressFiles([file], state.currentPath, archiveFormat: selectedFormat),
+                    );
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Compressing ${file.name} as $selectedFormat')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Compress', style: TextStyle(color: Color(0xFF007AFF))),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -255,7 +255,24 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
       if (state is FileManagerLoaded) {
         final currentState = state as FileManagerLoaded;
         try {
-          await repository.compressFiles(event.files.map((f) => f.path).toList(), event.destination);
+          await repository.compressFiles(event.files.map((f) => f.path).toList(), event.destination, event.archiveFormat);
+          files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
+          filteredFiles = List<FileItem>.from(files);
+          emit(currentState.copyWith(
+            files: files,
+            filteredFiles: filteredFiles,
+          ));
+        } catch (e) {
+          emit(FileManagerError(e.toString()));
+        }
+      }
+    });
+
+    on<ExtractArchive>((event, emit) async {
+      if (state is FileManagerLoaded) {
+        final currentState = state as FileManagerLoaded;
+        try {
+          await repository.extractArchive(event.archiveFile.path, event.destinationPath);
           files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
           filteredFiles = List<FileItem>.from(files);
           emit(currentState.copyWith(

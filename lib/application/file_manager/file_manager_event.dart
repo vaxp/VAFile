@@ -61,9 +61,18 @@ class MoveFile extends FileManagerEvent {
 class CompressFiles extends FileManagerEvent {
   final List<FileItem> files;
   final String destination;
-  const CompressFiles(this.files, this.destination);
+  final String archiveFormat; // 'zip', 'tar', 'tar.gz', 'tar.bz2', '7z'
+  const CompressFiles(this.files, this.destination, {this.archiveFormat = 'zip'});
   @override
-  List<Object?> get props => [files, destination];
+  List<Object?> get props => [files, destination, archiveFormat];
+}
+
+class ExtractArchive extends FileManagerEvent {
+  final FileItem archiveFile;
+  final String destinationPath;
+  const ExtractArchive(this.archiveFile, this.destinationPath);
+  @override
+  List<Object?> get props => [archiveFile, destinationPath];
 }
 
 class ToggleHiddenFiles extends FileManagerEvent {

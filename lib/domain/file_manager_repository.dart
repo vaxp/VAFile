@@ -8,5 +8,6 @@ abstract class FileManagerRepository {
   Future<List<DeviceInfo>> detectConnectedDevices();
   Future<void> copyFile(FileItem file, String destination);
   Future<void> moveFile(FileItem file, String destination);
-  Future<void> compressFiles(List<String> filePaths, String destination);
+  Future<void> compressFiles(List<String> filePaths, String destination, String format);
+  Future<void> extractArchive(String archivePath, String destinationPath);
 }
