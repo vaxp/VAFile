@@ -6,6 +6,10 @@ import 'presentation/pages/home_page.dart';
 import 'package:vafile/search/application/search_cubit.dart';
 import 'package:vafile/search/data/repositories/search_repository.dart';
 
+
+
+/// IMPORTANT: Do not recreate this widget or its parent on navigation.
+/// This ensures the MultiBlocProvider and MaterialApp are only created once.
 class FileManagerApp extends StatelessWidget {
   const FileManagerApp({super.key});
 

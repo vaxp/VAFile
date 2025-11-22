@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vafile/domain/file_manager_repository.dart';
 import 'package:vafile/domain/vaxp.dart';
 import 'package:vafile/infrastructure/file_manager_repository_impl.dart';
+import 'dart:io' show Platform;
 part 'file_manager_event.dart';
 part 'file_manager_state.dart';
 
@@ -25,7 +26,8 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
     repository = repo ?? FileManagerRepositoryImpl();
 
     on<InitializeFileManager>((event, emit) async {
-      currentPath = '/home';
+      String homePath = Platform.environment['HOME'] ?? '/home';
+      currentPath = homePath;
       _backStack.clear();
       _forwardStack.clear();
       emit(FileManagerLoading());

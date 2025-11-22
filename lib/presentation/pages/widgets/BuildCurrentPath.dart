@@ -8,19 +8,25 @@ class Buildcurrentpath extends StatelessWidget {
   @override
  Widget build(BuildContext context) {
     return Expanded(
-      child: BlocBuilder<fm.FileManagerBloc, fm.FileManagerState>(
-        builder: (context, state) {
+      child: BlocSelector<fm.FileManagerBloc, fm.FileManagerState, String>(
+        selector: (state) {
           if (state is fm.FileManagerLoaded) {
-            return Text(
-              state.currentPath,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white70,
-              ),
-              overflow: TextOverflow.ellipsis,
-            );
+            return state.currentPath;
           }
-          return const SizedBox();
+          return '';
+        },
+        builder: (context, currentPath) {
+          if (currentPath.isEmpty) {
+            return const SizedBox();
+          }
+          return Text(
+            currentPath,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.white70,
+            ),
+            overflow: TextOverflow.ellipsis,
+          );
         },
       ),
     );

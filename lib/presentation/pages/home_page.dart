@@ -18,6 +18,8 @@ class FileManagerHomePage extends StatefulWidget {
 class _FileManagerHomePageState extends State<FileManagerHomePage> {
   final GlobalKey<FileGridViewState> _gridKey = GlobalKey<FileGridViewState>();
   FileItem? _focusedFile;
+  List<_ActionButtonConfig>? _cachedActionConfigs;
+  FileItem? _cachedFocusedFile;
 
   @override
   void initState() {
@@ -53,19 +55,23 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
     return Expanded(
       child: Row(
         children: [
-          Container(
-            width: 200,
-            decoration: const BoxDecoration(
-              color: Color.fromARGB(100, 0, 0, 0),
+          RepaintBoundary(
+            child: Container(
+              width: 200,
+              decoration: const BoxDecoration(
+                color: Color.fromARGB(100, 0, 0, 0),
+              ),
+              child: const Sidebar(),
             ),
-            child: const Sidebar(),
           ),
           Expanded(
-            child: Container(
-              color: const Color.fromARGB(100, 0, 0, 0),
-              child: FileGridView(
-                key: _gridKey,
-                onSelectionChanged: _handleSelectionChanged,
+            child: RepaintBoundary(
+              child: Container(
+                color: const Color.fromARGB(100, 0, 0, 0),
+                child: FileGridView(
+                  key: _gridKey,
+                  onSelectionChanged: _handleSelectionChanged,
+                ),
               ),
             ),
           ),
@@ -75,13 +81,28 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
   }
 
   void _handleSelectionChanged(FileItem? file) {
-    setState(() {
-      _focusedFile = file;
-    });
+    if (_focusedFile != file) {
+      setState(() {
+        _focusedFile = file;
+        _cachedActionConfigs = null; // Invalidate cache
+        _cachedFocusedFile = file;
+      });
+    }
   }
 
   Widget _buildActionBar() {
+    // Use cached configs if available and focused file hasn't changed
+    if (_cachedActionConfigs != null && _cachedFocusedFile == _focusedFile) {
+      return _buildActionBarFromConfigs(_cachedActionConfigs!);
+    }
+    
     final actions = _focusedFile == null ? _generalActionConfigs() : _fileActionConfigs(_focusedFile!);
+    _cachedActionConfigs = actions;
+    _cachedFocusedFile = _focusedFile;
+    return _buildActionBarFromConfigs(actions);
+  }
+
+  Widget _buildActionBarFromConfigs(List<_ActionButtonConfig> actions) {
 
     return Container(
       height: 56,
@@ -238,36 +259,46 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
   static const Set<String> _desktopExtensions = {'.desktop'};
 
   Widget buildStatusBar() {
-    return Container(
-      height: 24,
-      decoration: const BoxDecoration(
-        color: Color.fromARGB(100, 0, 0, 0),
-        border: Border(
-          top: BorderSide(color: Color(0xFF404040), width: 1),
+    return RepaintBoundary(
+      child: Container(
+        height: 24,
+        decoration: const BoxDecoration(
+          color: Color.fromARGB(100, 0, 0, 0),
+          border: Border(
+            top: BorderSide(color: Color(0xFF404040), width: 1),
+          ),
         ),
-      ),
-      child: BlocBuilder<fm.FileManagerBloc, fm.FileManagerState>(
-        builder: (context, state) {
-          if (state is fm.FileManagerLoaded) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Text(
-                    '${state.filteredFiles.length} items',
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${state.availableSpace} GB available',
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
-                  ),
-                ],
-              ),
-            );
-          }
-          return const SizedBox();
-        },
+        child: BlocBuilder<fm.FileManagerBloc, fm.FileManagerState>(
+          buildWhen: (previous, current) {
+            // Only rebuild if filteredFiles length or availableSpace changed
+            if (previous is fm.FileManagerLoaded && current is fm.FileManagerLoaded) {
+              return previous.filteredFiles.length != current.filteredFiles.length ||
+                     previous.availableSpace != current.availableSpace;
+            }
+            return previous != current;
+          },
+          builder: (context, state) {
+            if (state is fm.FileManagerLoaded) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Text(
+                      '${state.filteredFiles.length} items',
+                      style: const TextStyle(fontSize: 12, color: Colors.white70),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${state.availableSpace} GB available',
+                      style: const TextStyle(fontSize: 12, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return const SizedBox();
+          },
+        ),
       ),
     );
   }

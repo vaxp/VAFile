@@ -30,8 +30,17 @@ class Sidebar extends StatelessWidget {
               _buildSidebarItem(
                 icon: Icons.home,
                 title: 'Home',
+                onTap: () {
+                  context.read<fm.FileManagerBloc>().add(
+                    fm.LoadDirectory(_getUserHomePath()),
+                  );
+                },
+              ),
+                _buildSidebarItem(
+                icon: Icons.desktop_mac,
+                title: 'Desktop',
                 onTap: () => context.read<fm.FileManagerBloc>().add(
-                  fm.LoadDirectory(Platform.environment['HOME'] ?? '/home'),
+                  fm.LoadDirectory('${Platform.environment['HOME']}/Desktop'),
                 ),
               ),
               _buildSidebarItem(
@@ -127,13 +136,28 @@ class Sidebar extends StatelessWidget {
       builder: (context, state) {
         bool isSelected = false;
         if (state is fm.FileManagerLoaded) {
-          isSelected = state.currentPath.contains(title.toLowerCase()) ||
-              (title == 'Home' && state.currentPath == Platform.environment['HOME']) ||
-              (title == 'Documents' && state.currentPath.contains('Documents')) ||
-              (title == 'Downloads' && state.currentPath.contains('Downloads')) ||
-              (title == 'Music' && state.currentPath.contains('Music')) ||
-              (title == 'Pictures' && state.currentPath.contains('Pictures')) ||
-              (title == 'Videos' && state.currentPath.contains('Videos'));
+          String homePath = _getUserHomePath();
+          String currentPath = state.currentPath;
+          
+          // تحديد المؤشر بناءً على المسار الحالي
+          if (title == 'Home') {
+            // المؤشر على Home فقط إذا كان المسار مساوياً تماماً للـ home directory
+            isSelected = currentPath == homePath;
+          } else if (title == 'Desktop') {
+            isSelected = currentPath == '$homePath/Desktop';
+          } else if (title == 'Documents') {
+            isSelected = currentPath == '$homePath/Documents';
+          } else if (title == 'Downloads') {
+            isSelected = currentPath == '$homePath/Downloads';
+          } else if (title == 'Music') {
+            isSelected = currentPath == '$homePath/Music';
+          } else if (title == 'Pictures') {
+            isSelected = currentPath == '$homePath/Pictures';
+          } else if (title == 'Videos') {
+            isSelected = currentPath == '$homePath/Videos';
+          } else if (title == 'Trash') {
+            isSelected = currentPath == '$homePath/.local/share/Trash/files';
+          }
         }
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
@@ -255,5 +279,22 @@ class Sidebar extends StatelessWidget {
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  String _getUserHomePath() {
+    // محاولة الحصول على مسار المستخدم من متغيرات البيئة
+    String? homePath = Platform.environment['HOME'];
+    if (homePath != null && homePath.isNotEmpty) {
+      return homePath;
+    }
+    
+    // محاولة بديلة: الحصول على اسم المستخدم وبناء المسار
+    String? username = Platform.environment['USER'];
+    if (username != null && username.isNotEmpty) {
+      return '/home/$username';
+    }
+    
+    // الخيار الأخير: استخدام القيمة الافتراضية
+    return '/home';
   }
 }

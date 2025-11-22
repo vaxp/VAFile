@@ -7,31 +7,34 @@ class NavigationControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<fm.FileManagerBloc, fm.FileManagerState>(
-      builder: (context, state) {
+    return BlocSelector<fm.FileManagerBloc, fm.FileManagerState, ({bool canGoBack, bool canGoForward})>(
+      selector: (state) {
         if (state is fm.FileManagerLoaded) {
-          return Row(
-            children: [
-              IconButton(
-                icon: Icon(
-                  Icons.arrow_back_ios,
-                  size: 16,
-                  color: state.canGoBack ? Colors.white70 : Colors.white24,
-                ),
-                onPressed: state.canGoBack ? () => context.read<fm.FileManagerBloc>().add(fm.NavigateBack()) : null,
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: state.canGoForward ? Colors.white70 : Colors.white24,
-                ),
-                onPressed: state.canGoForward ? () => context.read<fm.FileManagerBloc>().add(fm.NavigateForward()) : null,
-              ),
-            ],
-          );
+          return (canGoBack: state.canGoBack, canGoForward: state.canGoForward);
         }
-        return const SizedBox();
+        return (canGoBack: false, canGoForward: false);
+      },
+      builder: (context, navigation) {
+        return Row(
+          children: [
+            IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios,
+                size: 16,
+                color: navigation.canGoBack ? Colors.white70 : Colors.white24,
+              ),
+              onPressed: navigation.canGoBack ? () => context.read<fm.FileManagerBloc>().add(fm.NavigateBack()) : null,
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: navigation.canGoForward ? Colors.white70 : Colors.white24,
+              ),
+              onPressed: navigation.canGoForward ? () => context.read<fm.FileManagerBloc>().add(fm.NavigateForward()) : null,
+            ),
+          ],
+        );
       },
     );
   }

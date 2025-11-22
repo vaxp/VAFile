@@ -102,6 +102,19 @@ class FileGridViewState extends State<FileGridView> {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<FileManagerBloc, FileManagerState>(
+      buildWhen: (previous, current) {
+        // Only rebuild if:
+        // 1. State type changed (Loading -> Loaded, etc.)
+        // 2. Files list length changed (indicates files were added/removed)
+        // 3. View mode changed
+        // 4. Current path changed (navigation occurred)
+        if (previous is FileManagerLoaded && current is FileManagerLoaded) {
+          return previous.filteredFiles.length != current.filteredFiles.length ||
+                 previous.viewMode != current.viewMode ||
+                 previous.currentPath != current.currentPath;
+        }
+        return previous != current;
+      },
       builder: (context, state) {
         if (state is FileManagerLoading) {
           return const Center(child: CircularProgressIndicator());
