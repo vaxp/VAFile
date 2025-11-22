@@ -197,28 +197,28 @@ class FileGridViewState extends State<FileGridView> {
       },
       child: Stack(
         children: [
-          GridView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 5,
-              crossAxisSpacing: 65,
-              mainAxisSpacing: 65,
-              childAspectRatio: 1.0,
-            ),
-            itemCount: state.filteredFiles.length,
-            itemBuilder: (context, index) {
-              final file = state.filteredFiles[index];
-              final isSelected = _selectedFiles.contains(file);
-              
-              // Create or get key for this file item
-              if (!_fileItemKeys.containsKey(file)) {
-                _fileItemKeys[file] = GlobalKey();
-              }
-              
-              return _buildFileItem(file, isSelected, key: _fileItemKeys[file]);
-            },
-          ),
+GridView.builder(
+  controller: _scrollController,
+  padding: const EdgeInsets.all(16),
+  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+    maxCrossAxisExtent: 85, // عرض العنصر الأقصى
+    crossAxisSpacing: 85,
+    mainAxisSpacing: 85,
+    childAspectRatio: 1.0,
+  ),
+  itemCount: state.filteredFiles.length,
+  itemBuilder: (context, index) {
+    final file = state.filteredFiles[index];
+    final isSelected = _selectedFiles.contains(file);
+
+    if (!_fileItemKeys.containsKey(file)) {
+      _fileItemKeys[file] = GlobalKey();
+    }
+
+    return _buildFileItem(file, isSelected, key: _fileItemKeys[file]);
+  },
+),
+
           if (_isDragging && _selectionStart != null && _selectionEnd != null)
             _buildSelectionRectangle(),
         ],
