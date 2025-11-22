@@ -110,13 +110,29 @@ class _EditorSearchBarState extends State<EditorSearchBar> {
 
   void _nextMatch() {
     if (_totalMatches == 0) return;
-    final nextIndex = (_currentMatch % _totalMatches);
+    // الانتقال للمطابقة التالية
+    int nextIndex;
+    if (_currentMatch >= _totalMatches) {
+      // إذا وصلنا للنهاية، اذهب للأول
+      nextIndex = 0;
+    } else {
+      // وإلا انتقل للتالي
+      nextIndex = _currentMatch;
+    }
     _jumpToMatch(nextIndex);
   }
 
   void _previousMatch() {
     if (_totalMatches == 0) return;
-    final prevIndex = _currentMatch == 1 ? _totalMatches - 1 : _currentMatch - 2;
+    // الانتقال للمطابقة السابقة
+    int prevIndex;
+    if (_currentMatch <= 1) {
+      // إذا كنا في الأول، اذهب للأخير
+      prevIndex = _totalMatches - 1;
+    } else {
+      // وإلا انتقل للسابق
+      prevIndex = _currentMatch - 2;
+    }
     _jumpToMatch(prevIndex);
   }
 
@@ -140,87 +156,107 @@ class _EditorSearchBarState extends State<EditorSearchBar> {
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          // Search input field
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 13,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Search in code...',
-                hintStyle: const TextStyle(color: Colors.white24),
-                filled: true,
-                fillColor: const Color.fromARGB(100, 30, 30, 30),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF404040),
-                  ),
+      child: Focus(
+        onKey: (node, event) {
+          // Enter to go to next match
+          if (event.logicalKey == LogicalKeyboardKey.enter && !event.isShiftPressed) {
+            _nextMatch();
+            return KeyEventResult.handled;
+          }
+          // Shift+Enter to go to previous match
+          if (event.logicalKey == LogicalKeyboardKey.enter && event.isShiftPressed) {
+            _previousMatch();
+            return KeyEventResult.handled;
+          }
+          // Escape to close search
+          if (event.logicalKey == LogicalKeyboardKey.escape) {
+            widget.onClose?.call();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Row(
+          children: [
+            // Search input field
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF404040),
+                decoration: InputDecoration(
+                  hintText: 'Search in code...',
+                  hintStyle: const TextStyle(color: Colors.white24),
+                  filled: true,
+                  fillColor: const Color.fromARGB(100, 30, 30, 30),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF404040),
+                    ),
                   ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF007AFF),
-                    width: 2,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF404040),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF007AFF),
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          // Match counter
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              _totalMatches == 0
-                  ? '--'
-                  : '$_currentMatch/$_totalMatches',
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+            const SizedBox(width: 8),
+            // Match counter
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                _totalMatches == 0
+                    ? '--'
+                    : '$_currentMatch/$_totalMatches',
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
-          // Previous match button
-          IconButton(
-            icon: const Icon(Icons.arrow_upward, color: Colors.white54, size: 18),
-            onPressed: _totalMatches == 0 ? null : _previousMatch,
-            tooltip: 'Previous match (Shift+Enter)',
-            splashRadius: 20,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-          // Next match button
-          IconButton(
-            icon: const Icon(Icons.arrow_downward, color: Colors.white54, size: 18),
-            onPressed: _totalMatches == 0 ? null : _nextMatch,
-            tooltip: 'Next match (Enter)',
-            splashRadius: 20,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-          // Close button
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.white54, size: 18),
-            onPressed: widget.onClose,
-            tooltip: 'Close (Escape)',
-            splashRadius: 20,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-        ],
+            // Previous match button
+            IconButton(
+              icon: const Icon(Icons.arrow_upward, color: Colors.white54, size: 18),
+              onPressed: _totalMatches == 0 ? null : _previousMatch,
+              tooltip: 'Previous match (Shift+Enter)',
+              splashRadius: 20,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+            // Next match button
+            IconButton(
+              icon: const Icon(Icons.arrow_downward, color: Colors.white54, size: 18),
+              onPressed: _totalMatches == 0 ? null : _nextMatch,
+              tooltip: 'Next match (Enter)',
+              splashRadius: 20,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+            // Close button
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+              onPressed: widget.onClose,
+              tooltip: 'Close (Escape)',
+              splashRadius: 20,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+          ],
+        ),
       ),
     );
   }
