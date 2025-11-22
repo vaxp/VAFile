@@ -150,3 +150,10 @@ class PermanentlyDeleteFile extends FileManagerEvent {
 class EmptyTrash extends FileManagerEvent {
   const EmptyTrash();
 }
+
+class ExecuteFile extends FileManagerEvent {
+  final String filePath;
+  const ExecuteFile(this.filePath);
+  @override
+  List<Object?> get props => [filePath];
+}

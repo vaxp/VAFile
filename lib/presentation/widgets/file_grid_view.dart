@@ -1248,8 +1248,17 @@ if __name__ == '__main__':
       final isText = ['.text', '.md', '.c', '.cc', '.dart', '.py', '.sh', '.txt', '.rtf', '.html', '.js', '.ts', '.json', '.yaml', '.yml'].contains(extension);
       final isDeb = extension == '.deb';
       final isDesktop = extension == '.desktop';
+      
+      // Check if file is executable
+      final isExecutable = _isExecutableFile(file);
 
-      if (isDeb) {
+      if (isExecutable && !isText && !isDeb && !isDesktop) {
+        // Execute binary file
+        context.read<FileManagerBloc>().add(ExecuteFile(file.path));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Running ${file.name}...')),
+        );
+      } else if (isDeb) {
         showDialog(
           context: context,
           builder: (context) => DebInstallerDialog(debFilePath: file.path),
@@ -1276,6 +1285,17 @@ if __name__ == '__main__':
           SnackBar(content: Text('Opening ${file.name}')),
         );
       }
+    }
+  }
+
+  bool _isExecutableFile(FileItem file) {
+    if (file.isDirectory) return false;
+    try {
+      final fileStat = File(file.path).statSync();
+      // Check if file has execute permission for owner/user (64 = 0o100)
+      return (fileStat.mode & 64) != 0;
+    } catch (e) {
+      return false;
     }
   }
 

@@ -334,4 +334,26 @@ class FileManagerRepositoryImpl implements FileManagerRepository {
       throw Exception('Failed to empty trash: $e');
     }
   }
+
+  @override
+  Future<void> executeFile(String filePath) async {
+    try {
+      final file = File(filePath);
+      
+      // Check if file exists
+      if (!file.existsSync()) {
+        throw Exception('File does not exist: $filePath');
+      }
+      
+      // Make file executable if it isn't already
+      await Process.run('chmod', ['+x', filePath]);
+      
+      // Execute the file
+      await Process.start(filePath, []).then((process) {
+        // Detach from process so it continues running independently
+      });
+    } catch (e) {
+      throw Exception('Failed to execute file: $e');
+    }
+  }
 }

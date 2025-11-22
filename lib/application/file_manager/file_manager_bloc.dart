@@ -446,6 +446,14 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         }
       }
     });
+
+    on<ExecuteFile>((event, emit) async {
+      try {
+        await repository.executeFile(event.filePath);
+      } catch (e) {
+        emit(FileManagerError(e.toString()));
+      }
+    });
   }
 
   @override

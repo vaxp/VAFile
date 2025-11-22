@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vafile/presentation/pages/venom_layout.dart';
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, File;
 import '../../application/file_manager/file_manager_bloc.dart' as fm;
 import '../../domain/vaxp.dart';
 import '../widgets/sidebar.dart';
@@ -301,6 +301,7 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
 
   String _labelForPrimaryAction(FileItem file) {
     if (file.isDirectory) return 'Open Folder';
+    if (_isExecutableFile(file)) return 'Run';
     final ext = file.extension.toLowerCase();
     if (_debExtensions.contains(ext)) return 'Install Package';
     if (_desktopExtensions.contains(ext)) return 'Launch App';
@@ -311,6 +312,7 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
 
   IconData _iconForPrimaryAction(FileItem file) {
     if (file.isDirectory) return Icons.folder_open;
+    if (_isExecutableFile(file)) return Icons.play_arrow;
     final ext = file.extension.toLowerCase();
     if (_debExtensions.contains(ext)) return Icons.install_desktop;
     if (_desktopExtensions.contains(ext)) return Icons.rocket_launch;
@@ -339,6 +341,18 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
     if (name.endsWith('.tar.gz') || name.endsWith('.tar.bz2')) return true;
     // Check for single extensions
     return _archiveExtensions.contains(file.extension.toLowerCase());
+  }
+
+  bool _isExecutableFile(FileItem file) {
+    if (file.isDirectory) return false;
+    // Check if file is executable by checking permissions
+    try {
+      final fileStat = File(file.path).statSync();
+      // Check if file has execute permission for owner/user (0o100 = 64 in decimal)
+      return (fileStat.mode & 64) != 0;
+    } catch (e) {
+      return false;
+    }
   }
 
   Widget buildStatusBar() {
@@ -440,7 +454,7 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
           style: TextStyle(color: Colors.white),
         ),
         content: Text(
-          'Restore "${file.name}" to its original location?',
+          'Restore "${file.name}" to Home directory?',
           style: const TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -450,11 +464,13 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
           ),
           TextButton(
             onPressed: () {
-              // For now, we'll just show a message
-              // In a real app, you'd need to track original paths
+              final home = Platform.environment['HOME'] ?? '';
+              context.read<fm.FileManagerBloc>().add(
+                fm.RestoreFromTrash(file, home),
+              );
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Restoring ${file.name}...')),
+                SnackBar(content: Text('Restored ${file.name} to Home')),
               );
             },
             child: const Text('Restore', style: TextStyle(color: Color(0xFF34C759))),

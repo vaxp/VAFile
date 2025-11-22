@@ -13,4 +13,5 @@ abstract class FileManagerRepository {
   Future<void> restoreFromTrash(FileItem file, String originalPath);
   Future<void> permanentlyDeleteFile(FileItem file);
   Future<void> emptyTrash();
+  Future<void> executeFile(String filePath);
 }
