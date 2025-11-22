@@ -211,6 +211,16 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
         onPressed: grid == null ? null : () => grid.cutSelection(),
       ),
       _ActionButtonConfig(
+        label: 'Compress',
+        icon: Icons.folder_zip,
+        onPressed: grid == null ? null : () => _showCompressDialog(context, file),
+      ),
+      _ActionButtonConfig(
+        label: 'Delete',
+        icon: Icons.delete_outline,
+        onPressed: grid == null ? null : () => _showDeleteConfirmDialog(context, file),
+      ),
+      _ActionButtonConfig(
         label: 'Paste',
         icon: Icons.paste_outlined,
         onPressed: hasClipboardItems && grid != null ? () => grid.pasteFromClipboard() : null,
@@ -310,6 +320,100 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
         onCreateFolder: (name) {
           context.read<fm.FileManagerBloc>().add(fm.CreateNewFolderEvent(name));
         },
+      ),
+    );
+  }
+
+  void _showDeleteConfirmDialog(BuildContext context, FileItem file) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: const Text(
+          'Delete File',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${file.name}"?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<fm.FileManagerBloc>().add(fm.DeleteFile(file));
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Deleted ${file.name}')),
+              );
+            },
+            child: const Text('Delete', style: TextStyle(color: Color(0xFFFF5F57))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCompressDialog(BuildContext context, FileItem file) {
+    final controller = TextEditingController(text: '${file.name}.zip');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: const Text(
+          'Compress File',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Archive name:',
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintStyle: const TextStyle(color: Colors.white54),
+                filled: true,
+                fillColor: const Color(0xFF1F1F1F),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: Color(0xFF404040)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              final archiveName = controller.text;
+              if (archiveName.isNotEmpty) {
+                final state = context.read<fm.FileManagerBloc>().state;
+                if (state is fm.FileManagerLoaded) {
+                  context.read<fm.FileManagerBloc>().add(
+                    fm.CompressFiles([file], state.currentPath),
+                  );
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Compressing ${file.name}')),
+                  );
+                }
+              }
+            },
+            child: const Text('Compress', style: TextStyle(color: Color(0xFF007AFF))),
+          ),
+        ],
       ),
     );
   }
