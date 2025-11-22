@@ -178,15 +178,19 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
   List<_ActionButtonConfig> _fileActionConfigs(FileItem file) {
     final grid = _gridKey.currentState;
     final hasClipboardItems = ClipboardService.instance.hasItems;
+    final isArchive = _isArchiveFile(file);
     final configs = <_ActionButtonConfig>[];
 
-    configs.add(_ActionButtonConfig(
-      label: _labelForPrimaryAction(file),
-      icon: _iconForPrimaryAction(file),
-      onPressed: grid == null ? null : () => grid.openSelection(),
-    ));
+    // Only show Open button if it's not an archive file
+    if (!isArchive) {
+      configs.add(_ActionButtonConfig(
+        label: _labelForPrimaryAction(file),
+        icon: _iconForPrimaryAction(file),
+        onPressed: grid == null ? null : () => grid.openSelection(),
+      ));
+    }
 
-    if (file.isDirectory) {
+    if (file.isDirectory && !isArchive) {
       configs.add(_ActionButtonConfig(
         label: 'Open Terminal Here',
         icon: Icons.code,
@@ -210,12 +214,14 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
         icon: Icons.cut,
         onPressed: grid == null ? null : () => grid.cutSelection(),
       ),
-      _ActionButtonConfig(
-        label: 'Compress',
-        icon: Icons.folder_zip,
-        onPressed: grid == null ? null : () => _showCompressDialog(context, file),
-      ),
-      if (_isArchiveFile(file))
+      // Only show Compress button if it's not an archive file
+      if (!isArchive)
+        _ActionButtonConfig(
+          label: 'Compress',
+          icon: Icons.folder_zip,
+          onPressed: grid == null ? null : () => _showCompressDialog(context, file),
+        ),
+      if (isArchive)
         _ActionButtonConfig(
           label: 'Extract',
           icon: Icons.unarchive,

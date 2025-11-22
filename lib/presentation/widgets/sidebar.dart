@@ -118,13 +118,7 @@ class Sidebar extends StatelessWidget {
                   return const SizedBox.shrink();
                 },
               ),
-              _buildSidebarItemWithChevron(
-                icon: Icons.add,
-                title: 'Other Locations',
-                onTap: () {
-                  // Navigate to other locations
-                },
-              ),
+
             ],
           ),
         ),
@@ -234,58 +228,58 @@ class Sidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildSidebarItemWithChevron({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    Color? iconColor,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(6),
-          splashColor: Colors.transparent,
-          hoverColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: iconColor ?? Colors.white70,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.normal,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  size: 16,
-                  color: Colors.white54,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // Widget _buildSidebarItemWithChevron({
+  //   required IconData icon,
+  //   required String title,
+  //   required VoidCallback onTap,
+  //   Color? iconColor,
+  // }) {
+  //   return Container(
+  //     margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+  //     child: Material(
+  //       color: Colors.transparent,
+  //       child: InkWell(
+  //         onTap: onTap,
+  //         borderRadius: BorderRadius.circular(6),
+  //         splashColor: Colors.transparent,
+  //         hoverColor: Colors.transparent,
+  //         highlightColor: Colors.transparent,
+  //         child: Container(
+  //           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+  //           decoration: BoxDecoration(
+  //             borderRadius: BorderRadius.circular(6),
+  //           ),
+  //           child: Row(
+  //             children: [
+  //               Icon(
+  //                 icon,
+  //                 size: 16,
+  //                 color: iconColor ?? Colors.white70,
+  //               ),
+  //               const SizedBox(width: 8),
+  //               Expanded(
+  //                 child: Text(
+  //                   title,
+  //                   style: const TextStyle(
+  //                     fontSize: 13,
+  //                     color: Colors.white70,
+  //                     fontWeight: FontWeight.normal,
+  //                   ),
+  //                   overflow: TextOverflow.ellipsis,
+  //                 ),
+  //               ),
+  //               Icon(
+  //                 Icons.chevron_right,
+  //                 size: 16,
+  //                 color: Colors.white54,
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
   String _formatBytes(int bytes) {
     if (bytes == 0) return '0 B';
