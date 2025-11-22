@@ -132,33 +132,34 @@ class Sidebar extends StatelessWidget {
     Color? iconColor,
     String? subtitle,
   }) {
-    return BlocBuilder<fm.FileManagerBloc, fm.FileManagerState>(
-      builder: (context, state) {
-        bool isSelected = false;
+    return BlocSelector<fm.FileManagerBloc, fm.FileManagerState, bool>(
+      selector: (state) {
         if (state is fm.FileManagerLoaded) {
           String homePath = _getUserHomePath();
           String currentPath = state.currentPath;
           
           // تحديد المؤشر بناءً على المسار الحالي
           if (title == 'Home') {
-            // المؤشر على Home فقط إذا كان المسار مساوياً تماماً للـ home directory
-            isSelected = currentPath == homePath;
+            return currentPath == homePath;
           } else if (title == 'Desktop') {
-            isSelected = currentPath == '$homePath/Desktop';
+            return currentPath == '$homePath/Desktop';
           } else if (title == 'Documents') {
-            isSelected = currentPath == '$homePath/Documents';
+            return currentPath == '$homePath/Documents';
           } else if (title == 'Downloads') {
-            isSelected = currentPath == '$homePath/Downloads';
+            return currentPath == '$homePath/Downloads';
           } else if (title == 'Music') {
-            isSelected = currentPath == '$homePath/Music';
+            return currentPath == '$homePath/Music';
           } else if (title == 'Pictures') {
-            isSelected = currentPath == '$homePath/Pictures';
+            return currentPath == '$homePath/Pictures';
           } else if (title == 'Videos') {
-            isSelected = currentPath == '$homePath/Videos';
+            return currentPath == '$homePath/Videos';
           } else if (title == 'Trash') {
-            isSelected = currentPath == '$homePath/.local/share/Trash/files';
+            return currentPath == '$homePath/.local/share/Trash/files';
           }
         }
+        return false;
+      },
+      builder: (context, isSelected) {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
           child: Material(
