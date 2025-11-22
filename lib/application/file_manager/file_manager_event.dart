@@ -115,3 +115,10 @@ class ToggleFileExtensions extends FileManagerEvent {
 class CheckConnectedDevices extends FileManagerEvent {
   const CheckConnectedDevices();
 }
+
+class UpdateConnectedDevices extends FileManagerEvent {
+  final List<DeviceInfo> devices;
+  const UpdateConnectedDevices(this.devices);
+  @override
+  List<Object?> get props => [devices];
+}

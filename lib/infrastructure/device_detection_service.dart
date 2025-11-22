@@ -1,9 +1,52 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../domain/vaxp.dart';
 
 class DeviceDetectionService {
   static List<DeviceInfo>? _cachedDevices;
+  static Timer? _detectionTimer;
+  static final StreamController<List<DeviceInfo>> _deviceStreamController = 
+      StreamController<List<DeviceInfo>>.broadcast();
+
+  /// Get stream of device changes
+  static Stream<List<DeviceInfo>> get deviceStream => _deviceStreamController.stream;
+
+  /// Start continuous monitoring of connected devices
+  static void startMonitoring({Duration pollInterval = const Duration(seconds: 2)}) {
+    // Cancel existing timer if any
+    _detectionTimer?.cancel();
+
+    // Run initial check
+    _checkDevicesOnce();
+
+    // Set up periodic checking
+    _detectionTimer = Timer.periodic(pollInterval, (_) {
+      _checkDevicesOnce();
+    });
+  }
+
+  /// Stop monitoring connected devices
+  static void stopMonitoring() {
+    _detectionTimer?.cancel();
+    _detectionTimer = null;
+  }
+
+  /// Check devices once and emit if changed
+  static Future<void> _checkDevicesOnce() async {
+    try {
+      final currentDevices = await _detectDevicesFromSystem();
+
+      // Compare with cached devices
+      if (_cachedDevices == null || !_devicesListsAreEqual(_cachedDevices!, currentDevices)) {
+        // Devices have changed, update cache and emit
+        _cachedDevices = currentDevices;
+        _deviceStreamController.add(currentDevices);
+      }
+    } catch (e) {
+      print('Error in device monitoring: $e');
+    }
+  }
 
   /// Detect all mounted storage devices on the system with caching
   /// Only updates cache when devices actually change

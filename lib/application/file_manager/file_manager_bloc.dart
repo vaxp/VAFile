@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vafile/domain/file_manager_repository.dart';
 import 'package:vafile/domain/vaxp.dart';
 import 'package:vafile/infrastructure/file_manager_repository_impl.dart';
+import 'package:vafile/infrastructure/device_detection_service.dart';
 import 'dart:io' show Platform;
 part 'file_manager_event.dart';
 part 'file_manager_state.dart';
@@ -24,6 +25,14 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
 
   FileManagerBloc({FileManagerRepository? repo}) : super(FileManagerInitial()) {
     repository = repo ?? FileManagerRepositoryImpl();
+
+    // Start monitoring connected devices
+    DeviceDetectionService.startMonitoring();
+
+    // Listen to device stream changes
+    DeviceDetectionService.deviceStream.listen((devices) {
+      add(UpdateConnectedDevices(devices));
+    });
 
     on<InitializeFileManager>((event, emit) async {
       String homePath = Platform.environment['HOME'] ?? '/home';
@@ -361,5 +370,20 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         }
       }
     });
+
+    on<UpdateConnectedDevices>((event, emit) {
+      if (state is FileManagerLoaded) {
+        final currentState = state as FileManagerLoaded;
+        connectedDevices = event.devices;
+        emit(currentState.copyWith(connectedDevices: event.devices));
+      }
+    });
+  }
+
+  @override
+  Future<void> close() {
+    // Stop monitoring devices when bloc is closed
+    DeviceDetectionService.stopMonitoring();
+    return super.close();
   }
 }
