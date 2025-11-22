@@ -320,7 +320,7 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
   }
 
   static const Set<String> _textExtensions = {
-    '.txt', '.text', '.md', '.rtf', '.c', '.cc', '.dart', '.py', '.sh', '.html', '.js', '.ts', '.json', '.yaml', '.yml'
+    '.txt', '.text', '.md', '.rtf', '.c', '.cc', '.dart', '.py', '.sh', '.html', '.conf','.config','.js', '.ts', '.json', '.yaml', '.yml', '.xml'
   };
 
   static const Set<String> _mediaExtensions = {
