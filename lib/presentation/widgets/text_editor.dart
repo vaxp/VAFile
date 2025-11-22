@@ -7,6 +7,225 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter/services.dart';
 
+/// Search Bar Widget for Text Editor
+class EditorSearchBar extends StatefulWidget {
+  final TextEditingController textController;
+  final VoidCallback? onClose;
+  final Function(String searchText, List<int> matchPositions, int currentMatchIndex)? onSearchUpdated;
+
+  const EditorSearchBar({
+    super.key,
+    required this.textController,
+    this.onClose,
+    this.onSearchUpdated,
+  });
+
+  @override
+  State<EditorSearchBar> createState() => _EditorSearchBarState();
+}
+
+class _EditorSearchBarState extends State<EditorSearchBar> {
+  late TextEditingController _searchController;
+  int _currentMatch = 0;
+  int _totalMatches = 0;
+  List<int> _matchPositions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    _searchController.addListener(_updateMatches);
+  }
+
+  void _updateMatches() {
+    final searchText = _searchController.text.toLowerCase();
+    if (searchText.isEmpty) {
+      setState(() {
+        _totalMatches = 0;
+        _currentMatch = 0;
+        _matchPositions = [];
+      });
+      widget.onSearchUpdated?.call('', [], -1);
+      return;
+    }
+
+    final editorText = widget.textController.text.toLowerCase();
+    _matchPositions = [];
+    int index = 0;
+    while ((index = editorText.indexOf(searchText, index)) != -1) {
+      _matchPositions.add(index);
+      index += searchText.length;
+    }
+
+    setState(() {
+      _totalMatches = _matchPositions.length;
+      if (_totalMatches > 0) {
+        _currentMatch = 1;
+      } else {
+        _currentMatch = 0;
+      }
+    });
+
+    if (_totalMatches > 0) {
+      _jumpToMatch(_currentMatch - 1);
+    }
+  }
+
+  void _jumpToMatch(int matchIndex) {
+    if (matchIndex < 0 || _totalMatches == 0) return;
+
+    setState(() {
+      _currentMatch = matchIndex + 1;
+    });
+
+    // Update the controller's highlight
+    widget.onSearchUpdated?.call(
+      _searchController.text.toLowerCase(),
+      _matchPositions,
+      matchIndex,
+    );
+
+    // Scroll to the match
+    if (matchIndex < _matchPositions.length) {
+      final matchStart = _matchPositions[matchIndex];
+      final searchText = _searchController.text;
+      
+      // Calculate line number
+      int lineNumber = widget.textController.text.substring(0, matchStart).split('\n').length;
+      
+      // Find the text around the match for scrolling context
+      final fullText = widget.textController.text;
+      int lineStart = 0;
+      for (int i = 0; i < lineNumber - 1; i++) {
+        lineStart = fullText.indexOf('\n', lineStart) + 1;
+      }
+
+      // Update selection to show the match
+      widget.textController.selection = TextSelection(
+        baseOffset: matchStart,
+        extentOffset: matchStart + searchText.length,
+      );
+    }
+  }
+
+  void _nextMatch() {
+    if (_totalMatches == 0) return;
+    final nextIndex = (_currentMatch % _totalMatches);
+    _jumpToMatch(nextIndex);
+  }
+
+  void _previousMatch() {
+    if (_totalMatches == 0) return;
+    final prevIndex = _currentMatch == 1 ? _totalMatches - 1 : _currentMatch - 2;
+    _jumpToMatch(prevIndex);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 48,
+      decoration: const BoxDecoration(
+        color: Color.fromARGB(100, 0, 0, 0),
+        border: Border(
+          bottom: BorderSide(
+            color: Color(0xFF404040),
+            width: 1,
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          // Search input field
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search in code...',
+                hintStyle: const TextStyle(color: Colors.white24),
+                filled: true,
+                fillColor: const Color.fromARGB(100, 30, 30, 30),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF404040),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF404040),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF007AFF),
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Match counter
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              _totalMatches == 0
+                  ? '--'
+                  : '$_currentMatch/$_totalMatches',
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          // Previous match button
+          IconButton(
+            icon: const Icon(Icons.arrow_upward, color: Colors.white54, size: 18),
+            onPressed: _totalMatches == 0 ? null : _previousMatch,
+            tooltip: 'Previous match (Shift+Enter)',
+            splashRadius: 20,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+          // Next match button
+          IconButton(
+            icon: const Icon(Icons.arrow_downward, color: Colors.white54, size: 18),
+            onPressed: _totalMatches == 0 ? null : _nextMatch,
+            tooltip: 'Next match (Enter)',
+            splashRadius: 20,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+          // Close button
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+            onPressed: widget.onClose,
+            tooltip: 'Close (Escape)',
+            splashRadius: 20,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// AI Assistant Panel Widget
 class AiAssistantPanel extends StatefulWidget {
   const AiAssistantPanel({super.key});
@@ -478,10 +697,27 @@ class _AiAssistantPanelState extends State<AiAssistantPanel> {
 /// lightweight.
 class SyntaxHighlightingController extends TextEditingController {
   final TextStyle baseStyle;
+  String _searchText = '';
+  List<int> _searchMatches = [];
+  int _currentMatchIndex = -1;
 
   SyntaxHighlightingController({String? text, TextStyle? baseStyle})
       : baseStyle = baseStyle ?? const TextStyle(color: Colors.white70, fontSize: 14, fontFamily: 'Courier New'),
         super(text: text ?? '');
+
+  void setSearchHighlight(String searchText, List<int> matches, int currentMatchIndex) {
+    _searchText = searchText;
+    _searchMatches = matches;
+    _currentMatchIndex = currentMatchIndex;
+    notifyListeners();
+  }
+
+  void clearSearchHighlight() {
+    _searchText = '';
+    _searchMatches = [];
+    _currentMatchIndex = -1;
+    notifyListeners();
+  }
 
   @override
   TextSpan buildTextSpan({required BuildContext context, TextStyle? style, bool withComposing = false}) {
@@ -498,6 +734,16 @@ class SyntaxHighlightingController extends TextEditingController {
     final classStyle = defaultStyle.copyWith(color: Colors.teal[300], fontWeight: FontWeight.w600);
     final functionStyle = defaultStyle.copyWith(color: Colors.indigo[200]);
     final bracketStyle = defaultStyle.copyWith(color: Colors.yellow[300]);
+    final searchHighlightStyle = defaultStyle.copyWith(
+      backgroundColor: Colors.purple.withOpacity(0.4),
+      color: Colors.white,
+      fontWeight: FontWeight.bold,
+    );
+    final currentSearchHighlightStyle = defaultStyle.copyWith(
+      backgroundColor: Colors.purple.withOpacity(0.8),
+      color: Colors.white,
+      fontWeight: FontWeight.bold,
+    );
 
     // Priority-ordered token matchers. Higher priority first to avoid being overridden.
     final List<_PatternStyle> matchers = [
@@ -562,19 +808,69 @@ class SyntaxHighlightingController extends TextEditingController {
       }
     }
 
-    // Build spans
+    // Build spans with search highlighting
     final children = <TextSpan>[];
     int last = 0;
     for (final t in nonOverlapping) {
       if (t.start > last) {
-        children.add(TextSpan(text: source.substring(last, t.start), style: defaultStyle));
+        // Check if this range contains search matches
+        final textBefore = source.substring(last, t.start);
+        _addSearchHighlightedSpans(children, textBefore, last, defaultStyle, searchHighlightStyle, currentSearchHighlightStyle);
       }
       children.add(TextSpan(text: source.substring(t.start, t.end), style: t.style));
       last = t.end;
     }
-    if (last < source.length) children.add(TextSpan(text: source.substring(last), style: defaultStyle));
+    if (last < source.length) {
+      final remainingText = source.substring(last);
+      _addSearchHighlightedSpans(children, remainingText, last, defaultStyle, searchHighlightStyle, currentSearchHighlightStyle);
+    }
 
     return TextSpan(style: defaultStyle, children: children);
+  }
+
+  void _addSearchHighlightedSpans(
+    List<TextSpan> children,
+    String text,
+    int baseIndex,
+    TextStyle defaultStyle,
+    TextStyle searchHighlightStyle,
+    TextStyle currentSearchHighlightStyle,
+  ) {
+    if (_searchMatches.isEmpty) {
+      children.add(TextSpan(text: text, style: defaultStyle));
+      return;
+    }
+
+    int lastPos = 0;
+    for (int i = 0; i < _searchMatches.length; i++) {
+      final matchStart = _searchMatches[i];
+      final matchEnd = matchStart + _searchText.length;
+      final matchIsInRange = matchStart >= baseIndex && matchStart < baseIndex + text.length;
+
+      if (matchIsInRange) {
+        final relativeStart = matchStart - baseIndex;
+        final relativeEnd = matchEnd - baseIndex;
+
+        // Add text before match
+        if (relativeStart > lastPos) {
+          children.add(TextSpan(text: text.substring(lastPos, relativeStart), style: defaultStyle));
+        }
+
+        // Add highlighted match
+        final isCurrentMatch = i == _currentMatchIndex;
+        children.add(TextSpan(
+          text: text.substring(relativeStart, relativeEnd.clamp(0, text.length)),
+          style: isCurrentMatch ? currentSearchHighlightStyle : searchHighlightStyle,
+        ));
+
+        lastPos = relativeEnd.clamp(0, text.length);
+      }
+    }
+
+    // Add remaining text
+    if (lastPos < text.length) {
+      children.add(TextSpan(text: text.substring(lastPos), style: defaultStyle));
+    }
   }
 }
 
@@ -656,6 +952,7 @@ class _TextEditorPageState extends State<TextEditorPage> {
   late ScrollController _previewScrollController;
   bool _isSyncingScroll = false;
   bool _showAiPanel = false;
+  bool _showSearchBar = false;
 
   @override
   void initState() {
@@ -836,6 +1133,15 @@ class _TextEditorPageState extends State<TextEditorPage> {
                 onPressed: _runFile,
               ),
             IconButton(
+              icon: const Icon(Icons.search, color: Colors.white70),
+              tooltip: 'Search (Ctrl+F)',
+              onPressed: () {
+                setState(() {
+                  _showSearchBar = !_showSearchBar;
+                });
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.smart_toy_outlined, color: Colors.blueAccent),
               tooltip: 'AI Assistant',
               onPressed: () {
@@ -903,10 +1209,32 @@ class _TextEditorPageState extends State<TextEditorPage> {
           _handleRedo();
           return KeyEventResult.handled;
         }
+        // Ctrl+F to open search
+        if (event.isControlPressed && event.logicalKey.keyLabel == 'f') {
+          setState(() {
+            _showSearchBar = !_showSearchBar;
+          });
+          return KeyEventResult.handled;
+        }
         return KeyEventResult.ignored;
       },
       child: Column(
         children: [
+          if (_showSearchBar)
+            EditorSearchBar(
+              textController: _controller,
+              onClose: () {
+                setState(() {
+                  _showSearchBar = false;
+                  _controller.clearSearchHighlight();
+                });
+              },
+              onSearchUpdated: (searchText, matchPositions, currentMatchIndex) {
+                setState(() {
+                  _controller.setSearchHighlight(searchText, matchPositions, currentMatchIndex);
+                });
+              },
+            ),
           Container(
             decoration: const BoxDecoration(
               border: Border(
