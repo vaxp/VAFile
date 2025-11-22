@@ -279,7 +279,7 @@ class FileGridViewState extends State<FileGridView> {
       context: context,
       builder: (context) {
         return SimpleDialog(
-          backgroundColor: const Color(0xFF2D2D2D),
+          backgroundColor: const Color.fromARGB(99, 0, 0, 0),
           title: const Text('New Document', style: TextStyle(color: Colors.white)),
           children: [
             SimpleDialogOption(
