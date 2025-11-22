@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../application/file_manager/file_manager_bloc.dart' as fm;
+
 class Sidebar extends StatelessWidget {
   const Sidebar({super.key});
 
@@ -36,7 +37,7 @@ class Sidebar extends StatelessWidget {
                   );
                 },
               ),
-                _buildSidebarItem(
+              _buildSidebarItem(
                 icon: Icons.desktop_mac,
                 title: 'Desktop',
                 onTap: () => context.read<fm.FileManagerBloc>().add(
@@ -82,7 +83,9 @@ class Sidebar extends StatelessWidget {
                 icon: Icons.delete,
                 title: 'Trash',
                 onTap: () => context.read<fm.FileManagerBloc>().add(
-                  fm.LoadDirectory('${Platform.environment['HOME']}/.local/share/Trash/files'),
+                  fm.LoadDirectory(
+                    '${Platform.environment['HOME']}/.local/share/Trash/files',
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -102,7 +105,8 @@ class Sidebar extends StatelessWidget {
                           return _buildSidebarItem(
                             icon: device.icon as IconData,
                             title: device.name as String,
-                            subtitle: '${_formatBytes(device.freeSpace as int)} free',
+                            subtitle:
+                                '${_formatBytes(device.freeSpace as int)} free',
                             deviceMountPoint: device.mountPoint as String,
                             onTap: () {
                               context.read<fm.FileManagerBloc>().add(
@@ -118,7 +122,6 @@ class Sidebar extends StatelessWidget {
                   return const SizedBox.shrink();
                 },
               ),
-
             ],
           ),
         ),
@@ -139,12 +142,12 @@ class Sidebar extends StatelessWidget {
         if (state is fm.FileManagerLoaded) {
           String homePath = _getUserHomePath();
           String currentPath = state.currentPath;
-          
+
           // إذا كان جهاز متصل، قارن مع mount point
           if (deviceMountPoint != null) {
             return currentPath == deviceMountPoint;
           }
-          
+
           // تحديد المؤشر بناءً على المسار الحالي
           if (title == 'Home') {
             return currentPath == homePath;
@@ -181,7 +184,9 @@ class Sidebar extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   // ignore: deprecated_member_use
-                  color: isSelected ? const Color(0xFF007AFF).withOpacity(0.2) : Colors.transparent,
+                  color: isSelected
+                      ? const Color(0xFF007AFF).withOpacity(0.2)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
@@ -189,7 +194,11 @@ class Sidebar extends StatelessWidget {
                     Icon(
                       icon,
                       size: 16,
-                      color: iconColor ?? (isSelected ? const Color(0xFF007AFF) : Colors.white70),
+                      color:
+                          iconColor ??
+                          (isSelected
+                              ? const Color(0xFF007AFF)
+                              : Colors.white70),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -200,8 +209,12 @@ class Sidebar extends StatelessWidget {
                             title,
                             style: TextStyle(
                               fontSize: 13,
-                              color: isSelected ? const Color(0xFF007AFF) : Colors.white70,
-                              fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                              color: isSelected
+                                  ? const Color(0xFF007AFF)
+                                  : Colors.white70,
+                              fontWeight: isSelected
+                                  ? FontWeight.w500
+                                  : FontWeight.normal,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -211,7 +224,9 @@ class Sidebar extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 11,
                                 // ignore: deprecated_member_use
-                                color: isSelected ? const Color(0xFF007AFF).withOpacity(0.7) : Colors.white54,
+                                color: isSelected
+                                    ? const Color(0xFF007AFF).withOpacity(0.7)
+                                    : Colors.white54,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -228,64 +243,12 @@ class Sidebar extends StatelessWidget {
     );
   }
 
-  // Widget _buildSidebarItemWithChevron({
-  //   required IconData icon,
-  //   required String title,
-  //   required VoidCallback onTap,
-  //   Color? iconColor,
-  // }) {
-  //   return Container(
-  //     margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-  //     child: Material(
-  //       color: Colors.transparent,
-  //       child: InkWell(
-  //         onTap: onTap,
-  //         borderRadius: BorderRadius.circular(6),
-  //         splashColor: Colors.transparent,
-  //         hoverColor: Colors.transparent,
-  //         highlightColor: Colors.transparent,
-  //         child: Container(
-  //           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-  //           decoration: BoxDecoration(
-  //             borderRadius: BorderRadius.circular(6),
-  //           ),
-  //           child: Row(
-  //             children: [
-  //               Icon(
-  //                 icon,
-  //                 size: 16,
-  //                 color: iconColor ?? Colors.white70,
-  //               ),
-  //               const SizedBox(width: 8),
-  //               Expanded(
-  //                 child: Text(
-  //                   title,
-  //                   style: const TextStyle(
-  //                     fontSize: 13,
-  //                     color: Colors.white70,
-  //                     fontWeight: FontWeight.normal,
-  //                   ),
-  //                   overflow: TextOverflow.ellipsis,
-  //                 ),
-  //               ),
-  //               Icon(
-  //                 Icons.chevron_right,
-  //                 size: 16,
-  //                 color: Colors.white54,
-  //               ),
-  //             ],
-  //           ),
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
-
   String _formatBytes(int bytes) {
     if (bytes == 0) return '0 B';
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
@@ -295,13 +258,13 @@ class Sidebar extends StatelessWidget {
     if (homePath != null && homePath.isNotEmpty) {
       return homePath;
     }
-    
+
     // محاولة بديلة: الحصول على اسم المستخدم وبناء المسار
     String? username = Platform.environment['USER'];
     if (username != null && username.isNotEmpty) {
       return '/home/$username';
     }
-    
+
     // الخيار الأخير: استخدام القيمة الافتراضية
     return '/home';
   }
