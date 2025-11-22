@@ -10,4 +10,7 @@ abstract class FileManagerRepository {
   Future<void> moveFile(FileItem file, String destination);
   Future<void> compressFiles(List<String> filePaths, String destination, String format);
   Future<void> extractArchive(String archivePath, String destinationPath);
+  Future<void> restoreFromTrash(FileItem file, String originalPath);
+  Future<void> permanentlyDeleteFile(FileItem file);
+  Future<void> emptyTrash();
 }

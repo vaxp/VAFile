@@ -25,11 +25,48 @@ class FileManagerRepositoryImpl implements FileManagerRepository {
 
   @override
   Future<void> deleteFile(FileItem file) async {
-    if (file.isDirectory) {
-      await Directory(file.path).delete(recursive: true);
-    } else {
-      await File(file.path).delete();
+    final trashPath = _getTrashPath();
+    await _moveToTrash(file.path, trashPath);
+  }
+
+  Future<void> _moveToTrash(String sourcePath, String trashPath) async {
+    try {
+      // Create trash directory if it doesn't exist
+      final trashDir = Directory(trashPath);
+      if (!trashDir.existsSync()) {
+        await trashDir.create(recursive: true);
+      }
+
+      final basename = p.basename(sourcePath);
+      final trashItemPath = p.join(trashPath, basename);
+
+      // If item already exists in trash, rename it
+      String finalPath = trashItemPath;
+      int counter = 1;
+      while (File(finalPath).existsSync() || Directory(finalPath).existsSync()) {
+        final extension = p.extension(basename);
+        final nameWithoutExt = p.basenameWithoutExtension(basename);
+        final newName = extension.isEmpty
+            ? '$nameWithoutExt.($counter)'
+            : '$nameWithoutExt ($counter)$extension';
+        finalPath = p.join(trashPath, newName);
+        counter++;
+      }
+
+      // Move file or directory to trash
+      if (FileSystemEntity.isDirectorySync(sourcePath)) {
+        await Directory(sourcePath).rename(finalPath);
+      } else {
+        await File(sourcePath).rename(finalPath);
+      }
+    } catch (e) {
+      throw Exception('Failed to move to trash: $e');
     }
+  }
+
+  String _getTrashPath() {
+    final home = Platform.environment['HOME'] ?? '';
+    return p.join(home, '.local', 'share', 'Trash', 'files');
   }
 
   @override
@@ -251,6 +288,50 @@ class FileManagerRepositoryImpl implements FileManagerRepository {
       } else if (entity is File) {
         await entity.copy(p.join(destination.path, p.basename(entity.path)));
       }
+    }
+  }
+
+  @override
+  Future<void> restoreFromTrash(FileItem file, String originalPath) async {
+    try {
+      final originalDir = Directory(p.dirname(originalPath));
+      if (!originalDir.existsSync()) {
+        await originalDir.create(recursive: true);
+      }
+
+      if (FileSystemEntity.isDirectorySync(file.path)) {
+        await Directory(file.path).rename(originalPath);
+      } else {
+        await File(file.path).rename(originalPath);
+      }
+    } catch (e) {
+      throw Exception('Failed to restore from trash: $e');
+    }
+  }
+
+  @override
+  Future<void> permanentlyDeleteFile(FileItem file) async {
+    try {
+      if (file.isDirectory) {
+        await Directory(file.path).delete(recursive: true);
+      } else {
+        await File(file.path).delete();
+      }
+    } catch (e) {
+      throw Exception('Failed to permanently delete file: $e');
+    }
+  }
+
+  @override
+  Future<void> emptyTrash() async {
+    try {
+      final trashPath = _getTrashPath();
+      final trashDir = Directory(trashPath);
+      if (trashDir.existsSync()) {
+        await trashDir.delete(recursive: true);
+      }
+    } catch (e) {
+      throw Exception('Failed to empty trash: $e');
     }
   }
 }

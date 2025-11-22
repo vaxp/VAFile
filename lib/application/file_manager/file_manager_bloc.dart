@@ -395,6 +395,57 @@ class FileManagerBloc extends Bloc<FileManagerEvent, FileManagerState> {
         emit(currentState.copyWith(connectedDevices: event.devices));
       }
     });
+
+    on<PermanentlyDeleteFile>((event, emit) async {
+      if (state is FileManagerLoaded) {
+        final currentState = state as FileManagerLoaded;
+        try {
+          await repository.permanentlyDeleteFile(event.file);
+          files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
+          filteredFiles = List<FileItem>.from(files);
+          emit(currentState.copyWith(
+            files: files,
+            filteredFiles: filteredFiles,
+          ));
+        } catch (e) {
+          emit(FileManagerError(e.toString()));
+        }
+      }
+    });
+
+    on<EmptyTrash>((event, emit) async {
+      if (state is FileManagerLoaded) {
+        final currentState = state as FileManagerLoaded;
+        try {
+          await repository.emptyTrash();
+          files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
+          filteredFiles = List<FileItem>.from(files);
+          emit(currentState.copyWith(
+            files: files,
+            filteredFiles: filteredFiles,
+          ));
+        } catch (e) {
+          emit(FileManagerError(e.toString()));
+        }
+      }
+    });
+
+    on<RestoreFromTrash>((event, emit) async {
+      if (state is FileManagerLoaded) {
+        final currentState = state as FileManagerLoaded;
+        try {
+          await repository.restoreFromTrash(event.file, event.originalPath);
+          files = await repository.loadDirectory(currentPath, showHiddenFiles: showHiddenFiles);
+          filteredFiles = List<FileItem>.from(files);
+          emit(currentState.copyWith(
+            files: files,
+            filteredFiles: filteredFiles,
+          ));
+        } catch (e) {
+          emit(FileManagerError(e.toString()));
+        }
+      }
+    });
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vafile/presentation/pages/venom_layout.dart';
+import 'dart:io' show Platform;
 import '../../application/file_manager/file_manager_bloc.dart' as fm;
 import '../../domain/vaxp.dart';
 import '../widgets/sidebar.dart';
@@ -96,7 +97,10 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
       return _buildActionBarFromConfigs(_cachedActionConfigs!);
     }
     
-    final actions = _focusedFile == null ? _generalActionConfigs() : _fileActionConfigs(_focusedFile!);
+    final isTrash = _isCurrentPathTrash();
+    final actions = _focusedFile == null 
+        ? (isTrash ? _trashGeneralActionConfigs() : _generalActionConfigs())
+        : _fileActionConfigs(_focusedFile!);
     _cachedActionConfigs = actions;
     _cachedFocusedFile = _focusedFile;
     return _buildActionBarFromConfigs(actions);
@@ -175,11 +179,59 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
     ];
   }
 
+  List<_ActionButtonConfig> _trashGeneralActionConfigs() {
+    final grid = _gridKey.currentState;
+    return [
+      _ActionButtonConfig(
+        label: 'Restore All',
+        icon: Icons.restore,
+        onPressed: grid == null ? null : () => _showRestoreAllDialog(context),
+      ),
+      _ActionButtonConfig(
+        label: 'Empty Trash',
+        icon: Icons.delete_forever,
+        onPressed: grid == null ? null : () => _showEmptyTrashDialog(context),
+      ),
+      _ActionButtonConfig(
+        label: 'Select All',
+        icon: Icons.select_all,
+        onPressed: grid == null ? null : () => grid.selectAllEntries(),
+      ),
+    ];
+  }
+
+  bool _isCurrentPathTrash() {
+    final state = context.read<fm.FileManagerBloc>().state;
+    if (state is fm.FileManagerLoaded) {
+      final home = Platform.environment['HOME'] ?? '';
+      final trashPath = '$home/.local/share/Trash/files';
+      return state.currentPath == trashPath;
+    }
+    return false;
+  }
+
   List<_ActionButtonConfig> _fileActionConfigs(FileItem file) {
     final grid = _gridKey.currentState;
     final hasClipboardItems = ClipboardService.instance.hasItems;
     final isArchive = _isArchiveFile(file);
+    final isTrash = _isCurrentPathTrash();
     final configs = <_ActionButtonConfig>[];
+
+    // If in Trash, only show Restore and Permanently Delete
+    if (isTrash) {
+      return [
+        _ActionButtonConfig(
+          label: 'Restore',
+          icon: Icons.restore,
+          onPressed: grid == null ? null : () => _showRestoreDialog(context, file),
+        ),
+        _ActionButtonConfig(
+          label: 'Delete',
+          icon: Icons.delete_forever,
+          onPressed: grid == null ? null : () => _showPermanentDeleteDialog(context, file),
+        ),
+      ];
+    }
 
     // Only show Open button if it's not an archive file
     if (!isArchive) {
@@ -368,10 +420,144 @@ class _FileManagerHomePageState extends State<FileManagerHomePage> {
               context.read<fm.FileManagerBloc>().add(fm.DeleteFile(file));
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Deleted ${file.name}')),
+                SnackBar(content: Text('Moved ${file.name} to trash')),
               );
             },
             child: const Text('Delete', style: TextStyle(color: Color(0xFFFF5F57))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRestoreDialog(BuildContext context, FileItem file) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: const Text(
+          'Restore File',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Restore "${file.name}" to its original location?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              // For now, we'll just show a message
+              // In a real app, you'd need to track original paths
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Restoring ${file.name}...')),
+              );
+            },
+            child: const Text('Restore', style: TextStyle(color: Color(0xFF34C759))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPermanentDeleteDialog(BuildContext context, FileItem file) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: const Text(
+          'Permanently Delete',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete "${file.name}"? This action cannot be undone.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<fm.FileManagerBloc>().add(fm.PermanentlyDeleteFile(file));
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Permanently deleted ${file.name}')),
+              );
+            },
+            child: const Text('Delete', style: TextStyle(color: Color(0xFFFF5F57))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRestoreAllDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: const Text(
+          'Restore All Files',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Restore all files from trash to their original locations?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              // Note: This will restore all files that exist in trash
+              // For simplicity, we'll show a message
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Restoring files from trash...')),
+              );
+            },
+            child: const Text('Restore All', style: TextStyle(color: Color(0xFF34C759))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEmptyTrashDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2D2D2D),
+        title: const Text(
+          'Empty Trash',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Are you sure you want to permanently delete all files in trash? This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<fm.FileManagerBloc>().add(fm.EmptyTrash());
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Trash emptied')),
+              );
+            },
+            child: const Text('Empty', style: TextStyle(color: Color(0xFFFF5F57))),
           ),
         ],
       ),

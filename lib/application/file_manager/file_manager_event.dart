@@ -131,3 +131,22 @@ class UpdateConnectedDevices extends FileManagerEvent {
   @override
   List<Object?> get props => [devices];
 }
+
+class RestoreFromTrash extends FileManagerEvent {
+  final FileItem file;
+  final String originalPath;
+  const RestoreFromTrash(this.file, this.originalPath);
+  @override
+  List<Object?> get props => [file, originalPath];
+}
+
+class PermanentlyDeleteFile extends FileManagerEvent {
+  final FileItem file;
+  const PermanentlyDeleteFile(this.file);
+  @override
+  List<Object?> get props => [file];
+}
+
+class EmptyTrash extends FileManagerEvent {
+  const EmptyTrash();
+}
