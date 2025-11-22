@@ -201,10 +201,10 @@ class FileGridViewState extends State<FileGridView> {
             controller: _scrollController,
             padding: const EdgeInsets.all(16),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              crossAxisSpacing: 35,
-              mainAxisSpacing: 35,
-              childAspectRatio: 1.2,
+              crossAxisCount: 5,
+              crossAxisSpacing: 65,
+              mainAxisSpacing: 65,
+              childAspectRatio: 1.0,
             ),
             itemCount: state.filteredFiles.length,
             itemBuilder: (context, index) {
@@ -875,7 +875,7 @@ if __name__ == '__main__':
     
     // For files, use Material icons as fallback
     IconData iconData;
-    Color iconColor;
+    // Color iconColor;
     
     // Determine icon based on file extension
     switch (file.extension.toLowerCase()) {
@@ -895,11 +895,11 @@ if __name__ == '__main__':
       case '.yaml':
       case '.yml':
         iconData = Icons.description;
-        iconColor = Colors.white70;
+        // iconColor = Colors.white70;
         break;
       case '.pdf':
         iconData = Icons.picture_as_pdf;
-        iconColor = Colors.red;
+        // iconColor = Colors.red;
         break;
       case '.jpg':
       case '.jpeg':
@@ -909,7 +909,7 @@ if __name__ == '__main__':
       case '.svg':
       case '.webp':
         iconData = Icons.image;
-        iconColor = Colors.green;
+        // iconColor = Colors.green;
         break;
       case '.mp4':
       case '.avi':
@@ -917,47 +917,47 @@ if __name__ == '__main__':
       case '.mkv':
       case '.webm':
         iconData = Icons.videocam;
-        iconColor = Colors.purple;
+        // iconColor = Colors.purple;
         break;
       case '.mp3':
       case '.wav':
       case '.flac':
       case '.aac':
         iconData = Icons.music_note;
-        iconColor = Colors.orange;
+        // iconColor = Colors.orange;
         break;
       case '.zip':
       case '.rar':
       case '.tar':
       case '.gz':
         iconData = Icons.archive;
-        iconColor = Colors.brown;
+        // iconColor = Colors.brown;
         break;
       case '.exe':
       case '.app':
       case '.deb':
       case '.desktop':
         iconData = Icons.apps;
-        iconColor = Colors.blue;
+        // iconColor = Colors.blue;
         break;
       default:
         iconData = Icons.insert_drive_file;
-        iconColor = Colors.white70;
+        // iconColor = Colors.white70;
     }
 
     return Container(
       width: 64,
       height: 64,
-      decoration: BoxDecoration(
-        // ignore: deprecated_member_use
-        color: iconColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          // ignore: deprecated_member_use
-          color: iconColor.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
+      // decoration: BoxDecoration(
+      //   // ignore: deprecated_member_use
+      //   // color: iconColor.withOpacity(0.1),
+      //   borderRadius: BorderRadius.circular(12),
+      //   border: Border.all(
+      //     // ignore: deprecated_member_use
+      //     // color: iconColor.withOpacity(0.3),
+      //     width: 0,
+      //   ),
+      // ),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: thumbnail != null
@@ -973,7 +973,7 @@ if __name__ == '__main__':
                   return Icon(
                     iconData,
                     size: 32,
-                    color: iconColor,
+                    // color: iconColor,
                   );
                 },
               )
@@ -981,7 +981,7 @@ if __name__ == '__main__':
                 key: ValueKey('icon-${file.name}'),
                 iconData,
                 size: 32,
-                color: iconColor,
+                // color: iconColor,
               ),
       ),
     );
